@@ -1,7 +1,10 @@
+import 'package:angren_taxi/core/analytics/funnel_tracker.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -18,6 +21,7 @@ Future<void> setupServiceLocator() async {
   // SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   sl.registerSingleton<SharedPreferences>(prefs);
+  sl.registerSingleton<JsonCache>(JsonCache(prefs));
 
   // Core services
   // LocalStorage is eager (not lazy) because its tokens must be loaded from
@@ -28,12 +32,32 @@ Future<void> setupServiceLocator() async {
   sl.registerSingleton<LocalStorage>(localStorage);
 
   sl.registerLazySingleton<ApiClient>(
-    () => ApiClient(sl<LocalStorage>(), sl<GlobalKey<NavigatorState>>()),
+    () => ApiClient(
+      sl<LocalStorage>(),
+      sl<GlobalKey<NavigatorState>>(),
+      // Majburiy chiqishda socket ham uziladi — aks holda keyingi
+      // foydalanuvchi oldingi akkauntning socketida qolib ketishi mumkin.
+      onForceLogout: () => sl<SocketService>().disconnect(),
+    ),
   );
 
-  sl.registerLazySingleton<SocketService>(() => SocketService());
+  // Anonim voronka (faqat yo'lovchi ilovasi ishga tushiradi — main_passenger).
+  sl.registerLazySingleton<FunnelTracker>(() => FunnelTracker(api: sl<ApiClient>()));
+
+  sl.registerLazySingleton<SocketService>(
+    () => SocketService()
+      ..configureAuth(
+        readToken: sl<LocalStorage>().getToken,
+        refreshTokens: () => sl<ApiClient>().refreshSession(),
+      ),
+  );
 
   sl.registerLazySingleton<LocationService>(() => LocationService());
 
-  sl.registerLazySingleton<RouteService>(() => RouteService());
+  sl.registerLazySingleton<RouteService>(() => RouteService(sl<ApiClient>()));
+
+  // Ovozli navigatsiya. Lazy singleton ATAYLAB: `init()` qurilmadagi
+  // tillar ro'yxatini so'raydi (sekin platforma chaqiruvi), navigatsiya
+  // ekraniga har kirganda uni qaytadan so'rash ortiqcha.
+  sl.registerLazySingleton<VoiceGuide>(() => VoiceGuide());
 }

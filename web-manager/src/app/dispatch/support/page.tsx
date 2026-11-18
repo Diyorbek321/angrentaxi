@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { MessageCircle, Send } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { MessageCircle, MessagesSquare, Send } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
   getSupportMessages,
@@ -17,23 +17,48 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { RetryBanner } from '@/components/ui/RetryBanner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatPhone, formatTime } from '@/lib/format';
+import { useToast } from '@/components/ui/Toast';
+import { formatPhone, formatTime, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
+
+type ThreadFilter = 'all' | 'open' | 'closed';
+
+function threadTabs(): readonly { value: ThreadFilter; label: string }[] {
+  const m = t();
+  return [
+    { value: 'open', label: m.ops.support.open },
+    { value: 'closed', label: m.ops.support.closed },
+    { value: 'all', label: m.common.all },
+  ];
+}
 
 export default function SupportPage() {
+  const m = t();
+  const sm = m.ops.support;
+  const THREAD_TABS = threadTabs();
+  const { toast } = useToast();
   const {
     threads,
     isLoading: threadsLoading,
     error: threadsError,
     refetch: refetchThreads,
   } = useSupportThreads();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [filter, setFilter] = useState<ThreadFilter>('open');
+  const [search, setSearch] = useState('');
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -42,30 +67,61 @@ export default function SupportPage() {
     (t) => t.id === selectedId
   );
 
-  const selectThread = useCallback(
-    (id: string) => {
-      // Room swap is fire-and-forget: socket.io buffers the emits if the socket
-      // is still mid-handshake, so the selection can update immediately.
-      const leaving = selectedIdRef.current;
-      setSelectedId(id);
-      const socket = getSocket();
-      if (leaving) {
-        socket.emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, { threadId: leaving });
-      }
-      socket.emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
-    },
-    []
-  );
+  // Unread badge is bound to real per-thread counts — a permanently lit badge
+  // trains the operator to ignore all badges (SKILL.md badge discipline).
+  const totalUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
+
+  const visibleThreads = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return threads
+      .filter((t) => (filter === 'all' ? true : t.status === filter))
+      .filter((t) =>
+        needle === ''
+          ? true
+          : t.userName.toLowerCase().includes(needle) || t.userPhone.includes(needle)
+      )
+      .sort((a, b) => {
+        // Unread first — that is the operator's queue — then most recent.
+        if ((a.unreadCount > 0) !== (b.unreadCount > 0)) return a.unreadCount > 0 ? -1 : 1;
+        const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return bt - at;
+      });
+  }, [threads, filter, search]);
+
+  const selectThread = useCallback((id: string) => {
+    // Room swap is fire-and-forget: socket.io buffers the emits if the socket
+    // is still mid-handshake, so the selection can update immediately.
+    const leaving = selectedIdRef.current;
+    setSelectedId(id);
+    const socket = getSocket();
+    if (leaving) {
+      socket.emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, { threadId: leaving });
+    }
+    socket.emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
+  }, []);
+
+  const loadMessages = useCallback((threadId: string) => {
+    setMessagesLoading(true);
+    getSupportMessages(threadId)
+      .then((data) => {
+        setMessages(data.messages);
+        setMessagesError(null);
+      })
+      .catch(() => {
+        // Named, never swallowed — the operator must know the conversation is
+        // incomplete rather than assume the customer wrote nothing.
+        setMessages([]);
+        setMessagesError(t().ops.support.messagesLoadFailed);
+      })
+      .finally(() => setMessagesLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
-    setMessagesLoading(true);
-    getSupportMessages(selectedId)
-      .then((data) => setMessages(data.messages))
-      .catch(() => setMessages([]))
-      .finally(() => setMessagesLoading(false));
+    loadMessages(selectedId);
     markSupportThreadRead(selectedId).then(refetchThreads).catch(() => {});
-  }, [selectedId, refetchThreads]);
+  }, [selectedId, refetchThreads, loadMessages]);
 
   useEffect(() => {
     const handleNewMessage = (message: SupportMessage) => {
@@ -95,6 +151,11 @@ export default function SupportPage() {
       setDraft('');
     } catch (err) {
       console.error('Failed to send support message:', err);
+      toast({
+        title: sm.sendFailed,
+        description: sm.sendFailedDescription,
+        variant: 'error',
+      });
     } finally {
       setSending(false);
     }
@@ -103,67 +164,131 @@ export default function SupportPage() {
   const handleToggleStatus = async () => {
     if (!selectedThread) return;
     const nextStatus = selectedThread.status === 'open' ? 'closed' : 'open';
-    await setSupportThreadStatus(selectedThread.id, nextStatus);
-    await refetchThreads();
+    setStatusSaving(true);
+    try {
+      await setSupportThreadStatus(selectedThread.id, nextStatus);
+      await refetchThreads();
+      toast({
+        title: nextStatus === 'closed' ? sm.threadClosed : sm.threadReopened,
+        description: selectedThread.userName,
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to change support thread status:', err);
+      toast({ title: sm.statusChangeFailed, variant: 'error' });
+    } finally {
+      setStatusSaving(false);
+    }
   };
+
+  const hasThreadFilters = filter !== 'open' || search !== '';
 
   return (
     <div className="h-full flex bg-bg">
       {/* Thread list */}
       <aside className="w-72 lg:w-80 shrink-0 border-r border-line bg-surface flex flex-col">
         <div className="px-4 py-3 border-b border-line shrink-0">
-          <h2 className="text-sm font-semibold text-ink">Qoʻllab-quvvatlash</h2>
-          <p className="text-xs text-muted mt-0.5">Mijoz va haydovchi murojaatlari</p>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-title text-ink">{sm.title}</h1>
+            {totalUnread > 0 && (
+              <Badge variant="info" size="sm">
+                {sm.unread(totalUnread)}
+              </Badge>
+            )}
+          </div>
+          <p className="text-[13px] text-muted mt-0.5">{sm.subtitle}</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {threadsError ? (
-            <ErrorState compact message={threadsError} onRetry={refetchThreads} />
-          ) : threadsLoading ? (
-            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
-          ) : threads.length === 0 ? (
-            <EmptyState
+        <div className="px-3 pt-3 pb-2 space-y-2 shrink-0">
+          <SearchInput
+            placeholder={sm.searchPlaceholder}
+            value={search}
+            onChange={setSearch}
+            aria-label={sm.searchAria}
+          />
+          <SegmentedControl
+            items={THREAD_TABS}
+            value={filter}
+            onChange={setFilter}
+            size="sm"
+            ariaLabel={sm.statusAria}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
+          {threadsError && threads.length > 0 && (
+            <RetryBanner message={sm.listRefreshFailed} onRetry={refetchThreads} keepsLastData />
+          )}
+          {threadsError && threads.length === 0 ? (
+            <ErrorState
               compact
-              tone="positive"
-              icon={<MessageCircle size={20} />}
-              title="Murojaat yoʻq"
-              description="Yangi murojaat kelsa shu yerda koʻrinadi."
+              title={sm.listLoadFailed}
+              onRetry={refetchThreads}
             />
+          ) : threadsLoading && threads.length === 0 ? (
+            <div aria-busy="true" className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-[84px] rounded-ds-sm" />
+              ))}
+            </div>
+          ) : visibleThreads.length === 0 ? (
+            hasThreadFilters ? (
+              <EmptyState
+                compact
+                variant="no-results"
+                title={sm.noResultsTitle}
+                description={sm.noResultsDescription}
+                onClearFilters={() => {
+                  setSearch('');
+                  setFilter('open');
+                }}
+              />
+            ) : (
+              <EmptyState
+                compact
+                variant="cleared"
+                icon={<MessageCircle aria-hidden />}
+                title={sm.emptyTitle}
+                description={sm.emptyDescription}
+              />
+            )
           ) : (
-            threads.map((thread) => (
+            visibleThreads.map((thread) => (
               <button
                 key={thread.id}
                 onClick={() => selectThread(thread.id)}
+                aria-current={thread.id === selectedId ? 'true' : undefined}
                 className={clsx(
-                  'w-full text-left rounded-xl border px-3 py-2.5 transition-colors',
+                  'w-full text-left rounded-ds-sm border px-3 py-2.5 transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
                   thread.id === selectedId
-                    ? 'border-primary bg-primary/[0.08]'
+                    ? 'border-line-strong bg-surface-2'
                     : 'border-line hover:bg-surface-2'
                 )}
               >
                 <div className="flex items-center gap-2">
                   <Avatar name={thread.userName} size="xs" tone="muted" />
-                  <span className="text-sm font-medium text-ink truncate">{thread.userName}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{thread.userName || nameFallback()}</span>
                   {thread.unreadCount > 0 && (
-                    <Badge variant="danger" size="sm" className="ml-auto shrink-0">
+                    <Badge variant="info" size="sm" className="ml-auto shrink-0">
                       {thread.unreadCount}
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-1.5">
-                  <span className="text-[11px] font-mono text-muted truncate">
+                  <span className="num text-xs text-muted truncate">
                     {formatPhone(thread.userPhone)}
                   </span>
-                  <span className="text-[11px] text-subtle shrink-0">
+                  <span className="num text-xs text-subtle shrink-0">
                     {thread.lastMessageAt ? formatTime(thread.lastMessageAt) : ''}
                   </span>
                 </div>
                 <Badge
-                  variant={thread.status === 'open' ? 'mint-soft' : 'default'}
+                  variant={thread.status === 'open' ? 'success' : 'neutral'}
                   size="sm"
                   className="mt-1.5"
                 >
-                  {thread.status === 'open' ? 'Ochiq' : 'Yopiq'}
+                  {thread.status === 'open' ? sm.open : sm.closed}
                 </Badge>
               </button>
             ))
@@ -176,9 +301,9 @@ export default function SupportPage() {
         {!selectedThread ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <EmptyState
-              icon={<MessageCircle size={22} />}
-              title="Suhbat tanlanmagan"
-              description="Chapdagi roʻyxatdan murojaatni tanlang."
+              icon={<MessagesSquare aria-hidden />}
+              title={sm.noSelectionTitle}
+              description={sm.noSelectionDescription}
             />
           </div>
         ) : (
@@ -187,12 +312,12 @@ export default function SupportPage() {
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar name={selectedThread.userName} size="sm" tone="muted" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink truncate">
-                    {selectedThread.userName}
+                  <p className="text-title text-ink truncate">
+                    {selectedThread.userName || nameFallback()}
                   </p>
                   <p className="text-xs text-muted truncate">
-                    <span className="font-mono">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
-                    {selectedThread.userRole === 'driver' ? 'Haydovchi' : 'Yoʻlovchi'}
+                    <span className="num">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
+                    {selectedThread.userRole === 'driver' ? m.lib.auditRole.driver : m.lib.auditRole.passenger}
                   </p>
                 </div>
               </div>
@@ -200,24 +325,33 @@ export default function SupportPage() {
                 variant={selectedThread.status === 'open' ? 'secondary' : 'primary'}
                 size="sm"
                 onClick={handleToggleStatus}
+                isLoading={statusSaving}
               >
-                {selectedThread.status === 'open' ? 'Yopish' : 'Qayta ochish'}
+                {selectedThread.status === 'open' ? m.common.close : sm.reopen}
               </Button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
-              {messagesLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-10 w-2/3 rounded-2xl" />
-                  <Skeleton className="h-10 w-1/2 rounded-2xl ml-auto" />
-                  <Skeleton className="h-10 w-3/5 rounded-2xl" />
+              {messagesError ? (
+                <ErrorState
+                  compact
+                  title={messagesError}
+                  onRetry={() => {
+                    if (selectedId) loadMessages(selectedId);
+                  }}
+                />
+              ) : messagesLoading ? (
+                <div className="space-y-3" aria-busy="true">
+                  <Skeleton className="h-10 w-2/3 rounded-ds-md" />
+                  <Skeleton className="h-10 w-1/2 rounded-ds-md ml-auto" />
+                  <Skeleton className="h-10 w-3/5 rounded-ds-md" />
                 </div>
               ) : messages.length === 0 ? (
                 <EmptyState
                   compact
-                  icon={<MessageCircle size={20} />}
-                  title="Xabarlar yoʻq"
-                  description="Suhbatni birinchi boʻlib boshlang."
+                  icon={<MessageCircle aria-hidden />}
+                  title={sm.noMessagesTitle}
+                  description={sm.noMessagesDescription}
                 />
               ) : (
                 messages.map((message) => {
@@ -230,14 +364,14 @@ export default function SupportPage() {
                     >
                       <div
                         className={clsx(
-                          'max-w-[72%] rounded-2xl px-3.5 py-2.5 text-sm border',
+                          'max-w-[72%] rounded-ds-md px-3 py-2 text-[13px] border',
                           fromOperator
-                            ? 'bg-primary/12 border-primary/30 text-ink rounded-br-sm'
-                            : 'bg-surface border-line text-ink rounded-bl-sm'
+                            ? 'bg-mint-tint border-mint/30 text-ink rounded-br-ds-xs'
+                            : 'bg-surface border-line text-ink rounded-bl-ds-xs'
                         )}
                       >
                         <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                        <p className="text-[10px] text-subtle mt-1 text-right font-mono">
+                        <p className="num text-[11px] text-subtle mt-1 text-right">
                           {formatTime(message.createdAt)}
                         </p>
                       </div>
@@ -254,19 +388,22 @@ export default function SupportPage() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSend();
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
                   }}
-                  placeholder="Javob yozing…"
+                  placeholder={sm.replyPlaceholder}
                   className="flex-1"
-                  aria-label="Javob matni"
+                  aria-label={sm.replyAria}
                 />
                 <Button
                   onClick={handleSend}
                   isLoading={sending}
                   disabled={!draft.trim()}
-                  aria-label="Yuborish"
+                  aria-label={sm.send}
                 >
-                  <Send size={16} />
+                  <Send size={15} aria-hidden />
                 </Button>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authStorage } from '@/lib/auth';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { t } from '@/locales';
 
 /**
  * Faqat yo'naltirish sahifasi. Spinner o'rniga skelet — panelning qolgan
@@ -19,7 +20,7 @@ export default function RootPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       <div role="status" aria-live="polite" className="w-full max-w-sm flex flex-col items-center gap-3">
-        <span className="sr-only">Yo‘naltirilmoqda</span>
+        <span className="sr-only">{t().common.redirecting}</span>
         <Skeleton className="h-14 w-14 rounded-ds-md" />
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-3 w-28" />

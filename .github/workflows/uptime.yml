@@ -1,0 +1,72 @@
+name: Uptime
+
+# Har 5 daqiqada production'ni scripts/smoke.sh bilan tekshiradi va yiqilsa
+# Telegram'ga xabar yuboradi. 2026-10-05 da backend haftalab 404 qaytargan,
+# hech kim sezmagan — shu takrorlanmasin.
+#
+# Sozlash (GitHub → Settings → Secrets and variables → Actions):
+#   Variables: API_URL     = https://<backend-domen>/api/v1
+#              PANEL_URLS  = "https://<admin> https://<manager> https://<market> https://<restaurant>"
+#   Secrets:   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+#
+# ⚠️ `schedule` faqat default branch'dagi (main) workflow uchun ishlaydi va
+# GitHub uni 5–15 daqiqa kechiktirishi mumkin. API_URL o'rnatilmaguncha job
+# o'tkazib yuboriladi (qizil bo'lib turmaydi).
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Production smoke
+    if: ${{ vars.API_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/smoke.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Smoke test
+        id: smoke
+        env:
+          API_URL: ${{ vars.API_URL }}
+          PANEL_URLS: ${{ vars.PANEL_URLS }}
+        # Railway uyg'onishi/deploy oralig'ida bitta yiqilish soxta signal
+        # bo'lmasin — 30 soniyadan keyin bir marta qayta urinamiz.
+        run: |
+          set -o pipefail
+          if ./scripts/smoke.sh | tee smoke.log; then exit 0; fi
+          echo "--- 30 soniyadan keyin qayta urinish ---"
+          sleep 30
+          ./scripts/smoke.sh | tee smoke.log
+
+      - name: Telegram alert
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secret'lari o'rnatilmagan — xabar yuborilmadi"
+            exit 0
+          fi
+          failed="$(grep '❌' smoke.log 2>/dev/null | head -10 || true)"
+          text="🔴 AngrenTaxi ishlamayapti
+          ${failed:-smoke.sh ishga tushmadi}
+          ${RUN_URL}"
+          curl -sS -m 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${text}" \
+            -o /dev/null

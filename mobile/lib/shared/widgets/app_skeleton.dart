@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -70,16 +71,16 @@ class AppSkeletonGroup extends StatelessWidget {
   const AppSkeletonGroup({
     super.key,
     required this.child,
-    this.label = 'Yuklanmoqda',
+    this.label,
   });
 
   final Widget child;
-  final String label;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: label,
+      label: label ?? context.l10n.shLoading,
       liveRegion: true,
       excludeSemantics: true,
       child: child,

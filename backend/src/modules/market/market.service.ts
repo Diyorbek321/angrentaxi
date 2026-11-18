@@ -2,10 +2,18 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, LessThan, MoreThanOrEqual, Not, Raw, Repository } from 'typeorm';
+import { trendingProductIds } from './market-trending';
+import { normalizeProductQuery, searchProductIds } from './market-product-search';
+import { toPublicStore } from './public-store';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
 import { MarketCategory } from '../../database/entities/market-category.entity';
 import { Product, ProductStatus } from '../../database/entities/product.entity';
@@ -25,16 +33,58 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
+import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
+import { countProductsByCategory, vendorStockSummary, VendorStockSummary } from './vendor-catalog-summary';
+import { browseVendorProducts } from './vendor-product-browse';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
+import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
+import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
+import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
+import { appliedDeliveryFee } from '../settings/delivery-pricing';
+import { CourierTracking, courierTracking } from '../delivery/delivery-tracking';
+import { assertCustomerMayCheckout } from '../delivery/customer-delivery-gates';
+import { withHandoverCodes } from '../delivery/handover-code';
+import { assertVendorCanConfirmReturn, handleVendorReturnEvent } from '../delivery/vendor-return';
+import { OrdersReturnService } from '../orders/orders-return.service';
+import { AuditLogService } from '../audit/audit-log.service';
+import {
+  CARD_PAYMENT_EXPIRED_REASON,
+  UNPAID_CARD_EXPIRY_BATCH,
+  assertCheckoutPaymentAllowed,
+  assertVendorOrderPaid,
+  cardPaymentPending,
+  closePendingCardPayments,
+  isCardOrder,
+  isVendorOrderPaid,
+  notPaidByCardSql,
+  paidCardOrderIds,
+} from '../delivery/vendor-card-payment';
+import { unpaidCardOrderCancelledText } from '../notifications/misc-notification-texts';
+import { PromotionsService } from '../promotions/promotions.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Promotion, PromotionVendorType } from '../../database/entities/promotion.entity';
+import { priceCatalogItem, priceOrderLines, strongestPromotion } from '../promotions/promotion-pricing';
+import {
+  cancelNotAllowed,
+  cleanCancelReason,
+  customerCanCancel,
+  withCustomerFields,
+} from '../delivery/vendor-checkout';
+import { creditPromoCompensation } from '../delivery/promo-compensation';
+import { isSelfDelivered, vendorOrderCommission, vendorRevenue } from '../delivery/vendor-checkout';
+import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
+import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
 
 // Rolling window the jsonb-item analytics (best sellers, category breakdown,
 // stock turnover) are computed over, plus a hard row cap in case a very busy
@@ -48,6 +98,17 @@ const ANALYTICS_MAX_PRODUCTS = 2000;
 // Dashboard list sizes. Both were previously derived by slicing a full-table
 // read; they are now the query's own LIMIT.
 const RECENT_ORDERS_LIMIT = 5;
+// Bosh sahifa trend lentasi sahifasi (ilova 20 tadan yuklaydi).
+const TRENDING_DEFAULT_LIMIT = 20;
+const TRENDING_MAX_LIMIT = 50;
+
+/** Sahifa ≥ 1, limit 1..TRENDING_MAX_LIMIT (lenta va qidiruv uchun umumiy). */
+function productPaging(page: number, limit: number): { safePage: number; safeLimit: number } {
+  return {
+    safeLimit: Math.min(Math.max(Math.trunc(limit) || TRENDING_DEFAULT_LIMIT, 1), TRENDING_MAX_LIMIT),
+    safePage: Math.max(Math.trunc(page) || 1, 1),
+  };
+}
 const LOW_STOCK_LIST_LIMIT = 50;
 
 // Default page size for a customer's own order history. Kept generous so the
@@ -63,7 +124,9 @@ const ORDER_TRANSITIONS: Record<string, MarketOrderStatus> = {
 };
 
 @Injectable()
-export class MarketService {
+export class MarketService implements OnModuleInit {
+  private readonly logger = new Logger(MarketService.name);
+
   constructor(
     @InjectRepository(Store) private readonly storeRepo: Repository<Store>,
     @InjectRepository(MarketCategory)
@@ -78,7 +141,26 @@ export class MarketService {
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
     private readonly tariffsService: TariffsService,
+    private readonly settingsService: SettingsService,
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // v5 (docs/specs/food-market-ux-v5.md): aksiyalar, promokod, push.
+    @Optional() private readonly promotionsService?: PromotionsService,
+    @Optional() private readonly promoCodesService?: PromoCodesService,
+    @Optional() private readonly notificationsService?: NotificationsService,
+    // O'zi yetkazgan buyurtmaning sotuvchi cheki (kuryer yetkazganini
+    // FiscalReceiptsService o'zi `delivered` hodisasidan yozadi). Ixtiyoriy —
+    // qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly orderReturns?: OrdersReturnService,
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
+
+  onModuleInit(): void {
+    this.deliveryEvents?.subscribe((event) =>
+      event.marketOrderId ? this.onDeliveryEvent(event.marketOrderId, event) : undefined,
+    );
+  }
 
   // ---------- shared helpers ----------
 
@@ -135,6 +217,15 @@ export class MarketService {
     return this.categoryRepo.find({ where: { storeId }, order: { sortOrder: 'ASC' } });
   }
 
+  /** Sotuvchi paneli: har kategoriyada nechta mahsulot borligi bilan (sanash bazada). */
+  async listCategoriesWithCounts(storeId: string): Promise<Array<MarketCategory & { productCount: number }>> {
+    const [categories, counts] = await Promise.all([
+      this.listCategories(storeId),
+      countProductsByCategory(this.productRepo, storeId),
+    ]);
+    return categories.map((category) => ({ ...category, productCount: counts[category.id] ?? 0 }));
+  }
+
   createCategory(storeId: string, dto: CreateCategoryDto): Promise<MarketCategory> {
     return this.categoryRepo.save(
       this.categoryRepo.create({
@@ -169,8 +260,35 @@ export class MarketService {
 
   // ---------- vendor: products ----------
 
-  listProducts(storeId: string): Promise<Product[]> {
-    return this.productRepo.find({ where: { storeId }, order: { createdAt: 'DESC' } });
+  /** Panel ro'yxati — har mahsulotda vitrinadagi kabi `finalPrice` / `discount` (spec §4). */
+  async listProducts(storeId: string) {
+    const [products, promotions] = await Promise.all([
+      this.productRepo.find({ where: { storeId }, order: { createdAt: 'DESC' } }),
+      this.activePromotions(storeId),
+    ]);
+    return products.map((product) => this.withProductPricing(product, promotions));
+  }
+
+  async browseProducts(storeId: string, query: VendorProductQueryDto) {
+    const [page, promotions] = await Promise.all([
+      browseVendorProducts(this.productRepo, storeId, query),
+      this.activePromotions(storeId),
+    ]);
+    return { ...page, products: page.products.map((product) => this.withProductPricing(product, promotions)) };
+  }
+
+  private activePromotions(storeId: string): Promise<Promotion[]> {
+    return this.promotionsService
+      ? this.promotionsService.activeForVendor(PromotionVendorType.STORE, storeId)
+      : Promise.resolve([]);
+  }
+
+  private withProductPricing(product: Product, promotions: readonly Promotion[]) {
+    const priced = priceCatalogItem(
+      { id: product.id, categoryId: product.categoryId, price: Number(product.price) },
+      promotions,
+    );
+    return { ...product, finalPrice: priced.finalPrice, discount: priced.discount };
   }
 
   createProduct(storeId: string, dto: CreateProductDto): Promise<Product> {
@@ -202,7 +320,11 @@ export class MarketService {
       await this.recordStockChange(storeId, product, dto.stock, "Qo'lda o'zgartirildi");
     }
 
-    const { stock, ...rest } = dto;
+    // `stock` ATAYLAB chiqarib tashlanadi: uning o'zgarishi yuqorida
+    // `recordStockChange` orqali harakat jurnaliga yozildi, shuning uchun
+    // uni `Object.assign` bilan ikkinchi marta qo'llash zaxira tarixini
+    // chetlab o'tgan bo'lardi.
+    const { stock: _stock, ...rest } = dto;
     Object.assign(product, rest);
     return this.productRepo.save(product);
   }
@@ -222,9 +344,16 @@ export class MarketService {
     return { updated: toUpdate.length };
   }
 
-  async deleteProduct(storeId: string, id: string): Promise<void> {
+  /** O'chirilgan mahsulotning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async deleteProduct(storeId: string, id: string): Promise<string | null> {
     const product = await this.getOwnedProduct(storeId, id);
     await this.productRepo.remove(product);
+    return product.imageKey;
+  }
+
+  /** Sotuvchi paneli "Zaxira": tugagan/kam qolgan sonlari va to'ldirish ro'yxati. */
+  stockSummary(store: Pick<Store, 'id' | 'lowStockThreshold'>): Promise<VendorStockSummary> {
+    return vendorStockSummary(this.productRepo, store.id, store.lowStockThreshold ?? 0);
   }
 
   listStockMovements(storeId: string): Promise<StockMovement[]> {
@@ -255,7 +384,13 @@ export class MarketService {
       relations: ['customer'],
       order: { createdAt: 'DESC' },
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    // Topshirish kodi — faqat mijozga (INCIDENT-POLICY §2).
+    return this.withHandoverCodes(await Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id)))));
+  }
+
+  private withHandoverCodes<T extends { delivery: CourierTracking | null }>(items: T[]): Promise<T[]> {
+    return withHandoverCodes((sql, params) => this.orderRepo.query(sql, params), items);
   }
 
   async getOrder(storeId: string, id: string) {
@@ -280,8 +415,45 @@ export class MarketService {
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
     }
-    order.status = next;
-    let saved = await this.orderRepo.save(order);
+    // Kartali buyurtma to'lovdan oldin sotuvchiga ketmaydi (INCIDENT-POLICY §1).
+    await assertVendorOrderPaid(this.transactionRepo, order);
+    // Platforma kuryeri chaqirilgan buyurtma faqat kuryer topshirganda
+    // (yoki dispetcher kuryer safarini yakunlaganda) "yetkazildi" bo'ladi.
+    // Kuryer topilmagan bo'lsa ham: aks holda mijoz hech narsa olmagan
+    // buyurtma yopilib, sotuvchiga komissiya hisoblanib ketardi.
+    if (next === MarketOrderStatus.DELIVERED && order.deliveryOrderId) {
+      throw new BadRequestException(
+        "Buyurtmani kuryer topshiradi — kuryer topilmasa qayta chaqiring yoki dispetcherga murojaat qiling",
+      );
+    }
+    let saved: MarketOrder;
+    if (next === MarketOrderStatus.DELIVERED) {
+      // Conditional write: the courier's completion marks the order delivered
+      // too (onDeliveryEvent). Whichever lands first settles the vendor; the
+      // loser gets a 409 instead of booking the commission a second time.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: order.status },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
+    } else if (order.status === MarketOrderStatus.NEW) {
+      // Shartli yozuv: mijoz shu lahzada bekor qilgan bo'lsa (v5 §1),
+      // yig'ish bekor qilingan buyurtmani "tiriltirmasin".
+      const result = await this.orderRepo.update(
+        { id: order.id, status: MarketOrderStatus.NEW },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
+    } else {
+      order.status = next;
+      saved = await this.orderRepo.save(order);
+    }
     this.realtimeGateway.emitToUser(saved.customerId, 'market:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -296,7 +468,7 @@ export class MarketService {
 
     if (next === MarketOrderStatus.DELIVERED) {
       const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
-      await this.settleStoreEarnings(store, saved);
+      await this.settleDelivered(store, saved);
     }
 
     return this.withDelivery(saved);
@@ -316,20 +488,63 @@ export class MarketService {
   // platform on top of cash it already has in hand. A CARD/online order
   // means the platform holds the funds, so the store is credited the gross
   // and debited the commission, netting to the payout the platform owes.
+  private async settleDelivered(store: Store, order: MarketOrder): Promise<void> {
+    await this.settleStoreEarnings(store, order);
+    // Kuryer safari yo'q — chekni hech qanday `delivered` hodisasi yozmaydi.
+    // Bir martalik: `createAndSend` mavjud chekni qaytaradi; xato chiqarmaydi.
+    if (isSelfDelivered(order)) {
+      await this.fiscalReceipts?.recordForVendorOrder('market', order.id);
+    }
+    // Promokod (platforma hisobidan): naqdni olgan tomonga farq qaytariladi.
+    const isCash = order.paymentMethod === MarketPaymentMethod.CASH;
+    if (!isCash || !(Number(order.promoDiscount ?? 0) > 0)) return;
+    let collectorUserId: string | null = store.ownerUserId;
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      collectorUserId = ride.driverId ?? null;
+    }
+    await creditPromoCompensation(this.transactionRepo, {
+      kind: 'market',
+      vendorOrderId: order.id,
+      isCash,
+      promoDiscount: Number(order.promoDiscount),
+      collectorUserId,
+      collectorIsCourier: Boolean(order.deliveryOrderId),
+    });
+  }
+
   private async settleStoreEarnings(store: Store, order: MarketOrder): Promise<void> {
-    const commissionAmount = Math.round((order.totalPrice * store.commissionRate) / 100);
-    if (commissionAmount <= 0) {
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
+    // olib ketishda allaqachon daftarga yozilgan
+    // (`delivery/vendor-wallet-settlement.ts`) — ikkinchi marta yozilmaydi.
+    if (order.vendorWalletSettledAt) {
       return;
     }
+    // Himoya (INCIDENT-POLICY §1): karta puli platformaga tushmagan bo'lsa,
+    // sotuvchiga "karta tushumi" ham, komissiya ham yozilmaydi — aks holda
+    // platforma olmagan pulini sotuvchiga qarz bo'lib qolardi.
+    if (!(await isVendorOrderPaid(this.transactionRepo, order))) {
+      this.logger.warn(
+        `To'lanmagan kartali market buyurtmasi yetkazildi (${order.id}) — sotuvchiga tushum yozilmadi`,
+      );
+      return;
+    }
+
+    // Komissiya FAQAT tovardan, yetkazish haqidan hech qachon
+    // (`vendorOrderCommission`). Sotuvchi tushumi: platforma kuryeri
+    // yetkazsa — tovar (yetkazish haqi kuryer safarining to'lovi); o'zi
+    // yetkazsa — tovar + yetkazish haqi (`vendorRevenue`).
+    const commissionAmount = vendorOrderCommission(order, Number(store.commissionRate));
+    const revenue = vendorRevenue(order);
 
     const isCash = order.paymentMethod === MarketPaymentMethod.CASH;
     const paymentMethod = isCash ? PaymentMethod.CASH : PaymentMethod.CARD;
 
-    if (!isCash) {
+    if (!isCash && revenue > 0) {
       await this.transactionRepo.save({
         userId: store.ownerUserId,
         orderId: null,
-        amount: order.totalPrice,
+        amount: revenue,
         type: TransactionType.CREDIT,
         paymentMethod,
         status: TransactionStatus.COMPLETED,
@@ -337,6 +552,9 @@ export class MarketService {
       });
     }
 
+    if (commissionAmount <= 0) {
+      return;
+    }
     await this.transactionRepo.save({
       userId: store.ownerUserId,
       orderId: null,
@@ -362,17 +580,41 @@ export class MarketService {
       throw new BadRequestException('No active delivery tariff configured for market orders');
     }
 
-    const deliveryOrder = await this.ordersService.create(order.customerId, {
-      tariffId: tariffs[0].id,
-      pickupLat: store.lat,
-      pickupLng: store.lng,
-      dropoffLat: order.deliveryLat,
-      dropoffLng: order.deliveryLng,
-      pickupAddress: store.name,
-      dropoffAddress: order.deliveryAddress,
-      serviceType: ServiceType.MARKET,
-      details: { marketOrderId: order.id },
-    });
+    // The courier ride IS the delivery the customer already paid for at
+    // checkout: priced at that fee (the tariff price charged delivery twice)
+    // and paid the same way as the order, so a card order never has the
+    // courier asking for cash at the door.
+    const deliveryOrder = await this.ordersService.create(
+      order.customerId,
+      {
+        tariffId: tariffs[0].id,
+        pickupLat: store.lat,
+        pickupLng: store.lng,
+        dropoffLat: order.deliveryLat,
+        dropoffLng: order.deliveryLng,
+        pickupAddress: store.name,
+        dropoffAddress: order.deliveryAddress,
+        serviceType: ServiceType.MARKET,
+        paymentMethod:
+          order.paymentMethod === MarketPaymentMethod.CASH ? PaymentMethod.CASH : PaymentMethod.CARD,
+        details: {
+          marketOrderId: order.id,
+          ...deliveryRideDetails({
+            vendorName: store.name,
+            vendorPhone: store.phone ?? null,
+            customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
+            itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
+            totalPrice: order.totalPrice,
+            // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
+            itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
+            isCash: order.paymentMethod === MarketPaymentMethod.CASH,
+            promoDiscount: Number(order.promoDiscount ?? 0),
+            addressDetails: order.addressDetails ?? null,
+          }),
+        },
+      },
+      { agreedFare: checkoutDeliveryFee(order) },
+    );
     this.matchingService.startSearch(deliveryOrder.id).catch(() => {
       // Matching failures are logged inside MatchingService itself; the
       // market order still ships, just without an auto-assigned courier yet.
@@ -382,27 +624,153 @@ export class MarketService {
     return this.orderRepo.save(order);
   }
 
-  private async withDelivery(order: MarketOrder) {
+  /**
+   * Sends a new courier for a SHIPPED platform-delivery order whose previous
+   * courier ride ended without a delivery. Refuses while a courier ride is
+   * still live, so a double click cannot put two couriers on one parcel.
+   */
+  async redispatchDelivery(storeId: string, id: string) {
+    const order = await this.findOrderEntity(storeId, id);
+    if (order.status !== MarketOrderStatus.SHIPPED) {
+      throw new BadRequestException('Only shipped orders can be sent to a courier');
+    }
+    const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
+    if (store.deliveryMode !== StoreDeliveryMode.PLATFORM) {
+      throw new BadRequestException('This store delivers its own orders');
+    }
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      if (ride.status !== OrderStatus.CANCELLED) {
+        throw new ConflictException('A courier is already being searched for or assigned');
+      }
+    }
+    const saved = await this.dispatchDelivery(store, order);
+    return this.withDelivery(saved);
+  }
+
+  /** Sotuvchi: qaytarilgan tovar do'konga qaytib keldi (INCIDENT-POLICY §2; ovqatdagi bilan bir xil). */
+  async confirmReturned(storeId: string, id: string) {
+    const order = await this.findOrderEntity(storeId, id);
+    assertVendorCanConfirmReturn(order, MarketOrderStatus.RETURNING);
+    if (!this.orderReturns) throw new BadRequestException('Bu buyurtma qaytarilmayapti');
+    const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
+    await this.orderReturns.confirmReturned(order.deliveryOrderId, { kind: 'vendor', userId: store.ownerUserId });
+    return this.withDelivery(await this.findOrderEntity(storeId, id));
+  }
+
+  /**
+   * Courier ride → market order. Only the ride currently linked to the order
+   * counts; late events from a ride abandoned by a re-dispatch are ignored.
+   */
+  private async onDeliveryEvent(marketOrderId: string, event: DeliveryEvent): Promise<void> {
+    const order = await this.orderRepo.findOne({ where: { id: marketOrderId } });
+    if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    // "Yetkazib bo'lmadi" → qaytarilmoqda; "qaytib keldi" → tushumsiz yopiladi,
+    // tovar zaxiraga qaytadi (§2).
+    if (event.kind === 'delivery_failed' || event.kind === 'returned') {
+      const store = await this.storeRepo.findOneOrFail({ where: { id: order.storeId } });
+      await handleVendorReturnEvent(
+        {
+          kind: 'market',
+          order,
+          ownerUserId: store.ownerUserId,
+          repo: this.orderRepo,
+          transactions: this.transactionRepo,
+          inTransitStatus: MarketOrderStatus.SHIPPED,
+          emit: (userId, name, payload) => this.realtimeGateway.emitToUser(userId, name, payload),
+          push: (userIds, text, name, data) =>
+            this.notificationsService?.notifyUserIds(userIds, text, name, data) ?? Promise.resolve(),
+          audit: (entry) => this.auditLog?.record(entry) ?? Promise.resolve(),
+          afterReturned: () => this.restoreStock(order, 'Yetkazib bo‘lmadi — qaytarildi'),
+        },
+        event,
+      );
+      return;
+    }
+
+    if (event.kind === 'delivered') {
+      // Conditional write so a simultaneous manual "delivered" click and the
+      // courier's completion cannot both settle the store.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: MarketOrderStatus.SHIPPED },
+        { status: MarketOrderStatus.DELIVERED },
+      );
+      if (!result.affected) return;
+
+      const store = await this.storeRepo.findOneOrFail({ where: { id: order.storeId } });
+      await this.settleDelivered(store, { ...order, status: MarketOrderStatus.DELIVERED });
+      for (const userId of [order.customerId, store.ownerUserId]) {
+        this.realtimeGateway.emitToUser(userId, 'market:order:status', {
+          orderId: order.id,
+          status: MarketOrderStatus.DELIVERED,
+        });
+      }
+      return;
+    }
+
+    if (event.kind === 'cancelled') {
+      if (order.status !== MarketOrderStatus.SHIPPED) return;
+      const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+      if (store) {
+        this.realtimeGateway.emitToUser(store.ownerUserId, 'market:delivery:failed', {
+          orderId: order.id,
+        });
+      }
+      this.realtimeGateway.emitToUser(order.customerId, 'market:order:courier', {
+        orderId: order.id,
+        stage: 'searching_again',
+      });
+      return;
+    }
+
+    this.realtimeGateway.emitToUser(order.customerId, 'market:order:courier', {
+      orderId: order.id,
+      // Qayta biriktirish — mijoz uchun yangi kuryer qabul qildi.
+      stage: event.kind === 'reassigned' ? 'accepted' : event.kind,
+    });
+  }
+
+  /**
+   * `paid` — ro'yxatda oldindan bitta so'rov bilan hisoblangan
+   * (`paidCardOrderIds`); berilmasa shu buyurtma uchun tekshiriladi.
+   */
+  private async withDelivery(order: MarketOrder, paid?: boolean) {
+    const base = { ...withCustomerFields(order), paymentPending: await this.paymentPendingOf(order, paid) };
     if (!order.deliveryOrderId) {
-      return { ...order, delivery: null };
+      return { ...base, delivery: null };
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
-      return {
-        ...order,
-        delivery: {
-          orderId: deliveryOrder.id,
-          status: deliveryOrder.status,
-          driverName:
-            [deliveryOrder.driver?.firstName, deliveryOrder.driver?.lastName]
-              .filter(Boolean)
-              .join(' ')
-              .trim() || null,
-          driverPhone: deliveryOrder.driver?.phone ?? null,
-        },
-      };
-    } catch {
-      return { ...order, delivery: null };
+      // Vendor panels read orderId/status/driverName/driverPhone; the customer
+      // app also uses the car and the two points for its live courier map.
+      return { ...base, delivery: courierTracking(deliveryOrder) };
+    } catch (err) {
+      // A genuine failure here (DB down, bad join) used to be indistinguishable
+      // from "no courier assigned yet": both returned delivery: null, so the
+      // vendor board showed a dispatched order as undispatched with nothing in
+      // the logs. The fallback stays — an unavailable courier lookup must not
+      // break the order list — but it is no longer silent.
+      this.logger.error(
+        `Failed to resolve delivery for market order ${order.id}: ${(err as Error).message}`,
+      );
+      return { ...base, delivery: null };
+    }
+  }
+
+  /** `paymentPending` — kartali, bekor qilinmagan va to'lanmagan (§1). */
+  private async paymentPendingOf(order: MarketOrder, paid?: boolean): Promise<boolean> {
+    if (!isCardOrder(order) || order.status === MarketOrderStatus.CANCELLED) return false;
+    return cardPaymentPending(order, paid ?? (await isVendorOrderPaid(this.transactionRepo, order)));
+  }
+
+  /** Bekor qilingan kartali buyurtmaning ochiq to'lovi yopiladi — xato so'rovni yiqitmaydi. */
+  private async closeCardPayments(order: MarketOrder): Promise<void> {
+    if (!isCardOrder(order)) return;
+    try {
+      await closePendingCardPayments(this.transactionRepo, order);
+    } catch (err) {
+      this.logger.error(`Karta to'lovi yopilmadi (market ${order.id}): ${(err as Error).message}`);
     }
   }
 
@@ -491,7 +859,12 @@ export class MarketService {
     since.setDate(since.getDate() - ANALYTICS_WINDOW_DAYS);
 
     return this.orderRepo.find({
-      where: { storeId, createdAt: MoreThanOrEqual(since) },
+      // Qaytarilgan/qaytarilayotgan buyurtma — sotilgan tovar emas (§2).
+      where: {
+        storeId,
+        createdAt: MoreThanOrEqual(since),
+        status: Not(In([MarketOrderStatus.RETURNING, MarketOrderStatus.RETURNED])),
+      },
       order: { createdAt: 'DESC' },
       take: ANALYTICS_MAX_ORDERS,
     });
@@ -590,8 +963,78 @@ export class MarketService {
 
   // ---------- storefront (customer) ----------
 
-  async listActiveStores(): Promise<Store[]> {
-    return this.storeRepo.find({ where: { status: StoreStatus.ACTIVE }, order: { name: 'ASC' } });
+  /** Har do'konga `activePromotion` (eng kattasi) yoki null (spec §4). */
+  async listActiveStores() {
+    const [stores, promotions] = await Promise.all([
+      this.storeRepo.find({ where: { status: StoreStatus.ACTIVE }, order: { name: 'ASC' } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.STORE)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    return stores.map((store) => ({
+      ...toPublicStore(store),
+      activePromotion: strongestPromotion(promotions.get(store.id) ?? []),
+    }));
+  }
+
+  /**
+   * Bosh sahifadagi "Trenddagi mahsulotlar" lentasi (tartib — `market-trending.ts`).
+   * Narx vitrinadagi kabi aksiya bilan; har mahsulotda do'koni (faqat id va
+   * nom): ilova savat qaysi do'konga tegishli ekanini shundan biladi.
+   * `limit + 1` so'raladi — ortiqchasi bo'lsa `hasMore`.
+   */
+  async listTrendingProducts(page = 1, limit = TRENDING_DEFAULT_LIMIT) {
+    const { safePage, safeLimit } = productPaging(page, limit);
+    const ids = await trendingProductIds(
+      (sql, params) => this.productRepo.query(sql, params),
+      safeLimit + 1,
+      (safePage - 1) * safeLimit,
+    );
+    return this.productCardPage(ids, safePage, safeLimit);
+  }
+
+  /**
+   * Market sahifasidagi qidiruv — BARCHA ochiq do'konlar bo'yicha
+   * (`market-product-search.ts`). Natija lenta bilan bir xil shaklda: har
+   * mahsulotda do'koni, savat shu orqali to'g'ri do'konga bog'lanadi.
+   */
+  async searchProducts(rawQuery: string | undefined, page = 1, limit = TRENDING_DEFAULT_LIMIT) {
+    const { safePage, safeLimit } = productPaging(page, limit);
+    const q = normalizeProductQuery(rawQuery);
+    if (!q) return { items: [], page: safePage, limit: safeLimit, hasMore: false };
+    const ids = await searchProductIds(
+      (sql, params) => this.productRepo.query(sql, params),
+      q,
+      safeLimit + 1,
+      (safePage - 1) * safeLimit,
+    );
+    return this.productCardPage(ids, safePage, safeLimit);
+  }
+
+  /**
+   * Tartiblangan `ids` (`limit + 1` ta so'ralgan) → mahsulot kartochkalari:
+   * vitrinadagi aksiya narxi va do'koni (faqat id va nom). Ortiqchasi
+   * bo'lsa `hasMore`.
+   */
+  private async productCardPage(ids: string[], page: number, limit: number) {
+    const pageIds = ids.slice(0, limit);
+    if (pageIds.length === 0) return { items: [], page, limit, hasMore: false };
+
+    const [products, promotions] = await Promise.all([
+      this.productRepo.find({ where: { id: In(pageIds) }, relations: { store: true } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.STORE)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const items = pageIds
+      .map((id) => byId.get(id))
+      .filter((product): product is Product => product !== undefined)
+      .map(({ store, ...product }) => ({
+        ...this.withProductPricing(product as Product, promotions.get(product.storeId) ?? []),
+        store: { id: store?.id ?? product.storeId, name: store?.name ?? '' },
+      }));
+    return { items, page, limit, hasMore: ids.length > limit };
   }
 
   async getStoreDetail(storeId: string) {
@@ -599,13 +1042,24 @@ export class MarketService {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
-    const [categories, products] = await Promise.all([
+    const [categories, products, promotions] = await Promise.all([
       this.categoryRepo.find({ where: { storeId, isActive: true }, order: { sortOrder: 'ASC' } }),
       this.productRepo.find({ where: { storeId, status: ProductStatus.ACTIVE } }),
+      this.activePromotions(storeId),
     ]);
-    return { store, categories, products };
+    return {
+      store: { ...toPublicStore(store), promotions, activePromotion: strongestPromotion(promotions) },
+      categories,
+      products: products.map((product) => this.withProductPricing(product, promotions)),
+      promotions,
+    };
   }
 
+  /**
+   * Narx serverda (spec §2, §4): avval aksiya (sotuvchi hisobidan, qatorga
+   * `price = finalPrice`, `unitPrice`, `discountAmount`), keyin promokod
+   * (platforma hisobidan, `promoDiscount`, `totalPrice` ga kirmaydi).
+   */
   async createOrder(customerId: string, customerPhone: string | null, dto: CreateMarketOrderDto) {
     const store = await this.storeRepo.findOne({ where: { id: dto.storeId } });
     if (!store) {
@@ -616,7 +1070,7 @@ export class MarketService {
     const products = await this.productRepo.find({ where: { storeId: store.id } });
     const byId = new Map(products.map((p) => [p.id, p]));
 
-    const items = dto.items.map((input) => {
+    const lines = dto.items.map((input) => {
       const product = byId.get(input.productId);
       if (!product || !productIds.includes(product.id)) {
         throw new NotFoundException(`Product ${input.productId} not found in this store`);
@@ -627,50 +1081,309 @@ export class MarketService {
       if (product.stock < input.qty) {
         throw new ConflictException(`Not enough stock for "${product.name}"`);
       }
-      return {
-        productId: product.id,
-        name: product.name,
-        qty: input.qty,
-        price: Number(product.price),
-        packed: false,
-      };
+      return { product, qty: input.qty };
     });
 
-    for (const item of items) {
-      const product = byId.get(item.productId);
-      if (!product) continue;
-      await this.recordStockChange(
-        store.id,
-        product,
-        product.stock - item.qty,
-        `Buyurtma`,
-      );
+    const priced = priceOrderLines(
+      lines.map(({ product, qty }) => ({
+        item: { id: product.id, categoryId: product.categoryId, price: Number(product.price) },
+        qty,
+      })),
+      await this.activePromotions(store.id),
+    );
+    const items = lines.map(({ product, qty }, index) => ({
+      productId: product.id,
+      name: product.name,
+      qty,
+      // Undiriladigan narx — komissiya, kuryer to'lovi va fiskal chek shundan.
+      price: priced.lines[index].finalPrice,
+      unitPrice: priced.lines[index].unitPrice,
+      discountAmount: priced.lines[index].discountPerUnit,
+      packed: false,
+    }));
+
+    // The delivery fee is part of what the customer owes, so it belongs in
+    // the recorded total. It used to exist only as a client-side constant in
+    // the app, which meant the checkout screen showed one figure and the
+    // order row, the vendor board and the receipt all showed a smaller one.
+    //
+    // Bepul yetkazish (docs/specs/food-market-ux-v5.md §7): chegara aksiyadan
+    // KEYINGI, promokoddan OLDINGI tovar summasiga qaraydi. Qo'llangan haq
+    // `totalPrice` ga kiradi — kuryer safari, chek va JSON'dagi `deliveryFee`
+    // shundan (`checkoutDeliveryFee`) olinadi, ya'ni bepulda hammasi 0.
+    const itemsTotal = priced.itemsTotal;
+    const deliveryFee = appliedDeliveryFee(await this.settingsService.getDeliveryPricing(), itemsTotal);
+    const totalPrice = itemsTotal + deliveryFee;
+
+    // Naqd chegarasi ZAXIRAGA TEGISHDAN OLDIN: rad etilgan buyurtma
+    // mahsulotni band qilib qo'ymasin. Faqat platforma kuryeri uchun — u
+    // tovarni do'kondan o'z pulidan oladi (`delivery/vendor-cash.ts`);
+    // do'konning o'z kuryeri pulni do'kon nomidan oladi.
+    // Karta provayderi sozlanmagan bo'lsa kartali buyurtma ham rad
+    // (INCIDENT-POLICY §1).
+    const deliveryMode = dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM;
+    // Qarz va rad etishlar darvozasi (INCIDENT-POLICY §2).
+    await assertCustomerMayCheckout(
+      { query: (sql, params) => this.orderRepo.query(sql, params), transactions: this.transactionRepo },
+      {
+        customerId,
+        isCash: (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH,
+        settings: await this.settingsService.getDeliveryIncidentSettings(),
+      },
+    );
+    assertCheckoutPaymentAllowed({
+      isCash: (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH,
+      totalPrice,
+      cashLimit: await this.settingsService.getMaxCashVendorOrder(),
+      cashLimitApplies: deliveryMode === MarketOrderDeliveryMode.PLATFORM,
+      cardAvailable: this.settingsService.cardPaymentsAvailable(),
+    });
+
+    // Promokod ham zaxiraga tegishdan oldin: yaroqsiz kod hech narsani band qilmaydi.
+    const promo = await this.resolvePromo(customerId, dto.promoCode, itemsTotal);
+    const orderId = randomUUID();
+    if (promo) {
+      await this.requirePromoCodes().claimForVendorOrder(promo.promoCodeId, customerId, { kind: 'market', id: orderId });
     }
 
-    const totalPrice = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-    const order = await this.orderRepo.save(
-      this.orderRepo.create({
-        storeId: store.id,
-        customerId,
-        items,
-        totalPrice,
-        deliveryAddress: dto.deliveryAddress,
-        deliveryLat: dto.deliveryLat,
-        deliveryLng: dto.deliveryLng,
-        deliveryMode: dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM,
-        paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
-        customerPhone,
-        note: dto.note ?? null,
-        status: MarketOrderStatus.NEW,
-      }),
-    );
+    let order: MarketOrder;
+    try {
+      for (const item of items) {
+        const product = byId.get(item.productId);
+        if (!product) continue;
+        await this.recordStockChange(store.id, product, product.stock - item.qty, `Buyurtma`);
+      }
+      order = await this.orderRepo.save(
+        this.orderRepo.create({
+          id: orderId,
+          storeId: store.id,
+          customerId,
+          items,
+          totalPrice,
+          deliveryAddress: dto.deliveryAddress,
+          deliveryLat: dto.deliveryLat,
+          deliveryLng: dto.deliveryLng,
+          deliveryMode,
+          paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
+          customerPhone,
+          note: dto.note ?? null,
+          status: MarketOrderStatus.NEW,
+          promoCodeId: promo?.promoCodeId ?? null,
+          promoCode: promo?.code ?? null,
+          promoDiscount: promo?.discount ?? 0,
+          promotionDiscount: priced.promotionDiscount,
+          addressDetails: normalizeAddressDetails(dto.addressDetails),
+          cancelledBy: null,
+          cancelReason: null,
+          cancelledAt: null,
+        }),
+      );
+    } catch (err) {
+      if (promo) {
+        await this.requirePromoCodes().releaseForVendorOrder(promo.promoCodeId, customerId, { kind: 'market', id: orderId });
+      }
+      throw err;
+    }
 
     this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:created', {
       orderId: order.id,
       storeId: store.id,
     });
 
-    return order;
+    // Yangi buyurtmaning to'lovi hali boshlanmagan.
+    return { ...withCustomerFields(order), paymentPending: isCardOrder(order) };
+  }
+
+  private requirePromoCodes(): PromoCodesService {
+    if (!this.promoCodesService) {
+      throw new BadRequestException('Promo code not found');
+    }
+    return this.promoCodesService;
+  }
+
+  /** Promokod — tovar summasiga (aksiyadan keyin, yetkazishsiz); chegirma tovar summasidan oshmaydi. */
+  private async resolvePromo(
+    customerId: string,
+    code: string | undefined,
+    itemsTotal: number,
+  ): Promise<{ promoCodeId: string; code: string; discount: number } | null> {
+    const trimmed = code?.trim();
+    if (!trimmed) return null;
+    const result = await this.requirePromoCodes().validate(trimmed, customerId, itemsTotal, {
+      serviceType: ServiceType.MARKET,
+    });
+    return {
+      promoCodeId: result.promoCodeId,
+      code: trimmed.toUpperCase(),
+      discount: Math.min(itemsTotal, Math.max(0, Math.round(result.discountAmount))),
+    };
+  }
+
+  private async releasePromo(order: Pick<MarketOrder, 'id' | 'promoCodeId' | 'customerId'>): Promise<void> {
+    if (!order.promoCodeId || !this.promoCodesService) return;
+    try {
+      await this.promoCodesService.releaseForVendorOrder(order.promoCodeId, order.customerId, {
+        kind: 'market',
+        id: order.id,
+      });
+    } catch (err) {
+      this.logger.error(`Promokod bo'shatilmadi (market ${order.id}): ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Mijoz bekor qilishi (spec §1): faqat do'kon QABUL QILMAGAN (`new`)
+   * buyurtma. Shartli yozuv; zaxira qaytariladi, promokod bo'shatiladi.
+   */
+  async cancelByCustomer(customerId: string, id: string, reason?: string) {
+    const order = await this.orderRepo.findOne({ where: { id, customerId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (!customerCanCancel(order)) {
+      throw cancelNotAllowed('market');
+    }
+    const changes = {
+      status: MarketOrderStatus.CANCELLED,
+      cancelledBy: 'customer' as const,
+      cancelReason: cleanCancelReason(reason),
+      cancelledAt: new Date(),
+    };
+    const result = await this.orderRepo.update({ id, customerId, status: MarketOrderStatus.NEW }, changes);
+    if (!result.affected) {
+      throw cancelNotAllowed('market');
+    }
+    const saved: MarketOrder = { ...order, ...changes };
+    await this.restoreStock(saved);
+    await this.releasePromo(saved);
+    await this.closeCardPayments(saved);
+
+    const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+    if (store) {
+      this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'customer',
+        cancelReason: saved.cancelReason,
+      });
+      await this.pushVendorCancelled(store.ownerUserId, saved);
+    }
+    this.realtimeGateway.emitToUser(customerId, 'market:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+    });
+    return this.withDelivery(saved);
+  }
+
+  private async restoreStock(order: MarketOrder, reason = 'Mijoz bekor qildi'): Promise<void> {
+    for (const item of order.items) {
+      try {
+        const product = await this.productRepo.findOne({ where: { id: item.productId, storeId: order.storeId } });
+        if (!product) continue;
+        await this.recordStockChange(order.storeId, product, product.stock + item.qty, reason);
+      } catch (err) {
+        this.logger.error(`Zaxira qaytarilmadi (market ${order.id}, ${item.productId}): ${(err as Error).message}`);
+      }
+    }
+  }
+
+  // ---------- to'lanmagan kartali buyurtma muddati (INCIDENT-POLICY §1) ----------
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'market-unpaid-card-orders' })
+  async handleUnpaidCardOrdersTick(): Promise<void> {
+    // Ushlanmagan xato scheduler'ni jim qoldirishi mumkin.
+    try {
+      await this.expireUnpaidCardOrders();
+    } catch (err) {
+      this.logger.error(`To'lanmagan kartali market buyurtmalarini bekor qilish yiqildi: ${err}`);
+    }
+  }
+
+  /**
+   * `cardPaymentTimeoutMinutes` ichida to'lanmagan kartali (`new`)
+   * buyurtmalarni bekor qiladi: ochiq to'lov yopiladi, zaxira qaytadi,
+   * promokod bo'shaydi, mijozga push. Bir nechta instansda xavfsiz —
+   * bekor qilish shartli UPDATE (`status = 'new'`). Qaytaradi: bekor
+   * qilinganlar soni.
+   */
+  async expireUnpaidCardOrders(now: Date = new Date()): Promise<number> {
+    const minutes = await this.settingsService.getCardPaymentTimeoutMinutes();
+    const cutoff = new Date(now.getTime() - minutes * 60_000);
+    const candidates = await this.orderRepo.find({
+      where: {
+        status: MarketOrderStatus.NEW,
+        paymentMethod: MarketPaymentMethod.CARD,
+        createdAt: LessThan(cutoff),
+        id: Raw(notPaidByCardSql),
+      },
+      order: { createdAt: 'ASC' },
+      take: UNPAID_CARD_EXPIRY_BATCH,
+    });
+    let cancelled = 0;
+    for (const order of candidates) {
+      try {
+        if (await this.expireUnpaidCardOrder(order, minutes, now)) cancelled += 1;
+      } catch (err) {
+        this.logger.error(`To'lanmagan market buyurtmasi bekor qilinmadi (${order.id}): ${(err as Error).message}`);
+      }
+    }
+    return cancelled;
+  }
+
+  private async expireUnpaidCardOrder(order: MarketOrder, minutes: number, now: Date): Promise<boolean> {
+    // Avval ochiq to'lov yopiladi — shundan keyin kelgan callback pulni
+    // bekor qilingan buyurtmaga tushira olmaydi; keyin to'langanmi qayta
+    // tekshiriladi (shu orada to'lagan mijozning buyurtmasi qoladi).
+    await closePendingCardPayments(this.transactionRepo, order);
+    if (await isVendorOrderPaid(this.transactionRepo, order)) return false;
+
+    const changes = {
+      status: MarketOrderStatus.CANCELLED,
+      cancelledBy: 'system' as const,
+      cancelReason: CARD_PAYMENT_EXPIRED_REASON,
+      cancelledAt: now,
+    };
+    const result = await this.orderRepo.update({ id: order.id, status: MarketOrderStatus.NEW }, changes);
+    if (!result.affected) return false;
+    const saved: MarketOrder = { ...order, ...changes };
+    await this.restoreStock(saved, "Karta to'lovi muddati o'tdi");
+    await this.releasePromo(saved);
+
+    this.realtimeGateway.emitToUser(saved.customerId, 'market:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+      reason: saved.cancelReason,
+    });
+    const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+    if (store) {
+      this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'system',
+        cancelReason: saved.cancelReason,
+      });
+    }
+    try {
+      await this.notificationsService?.notifyUserIds(
+        [saved.customerId],
+        (language) => unpaidCardOrderCancelledText(minutes, language),
+        'market_order_payment_expired',
+        { orderId: saved.id },
+      );
+    } catch (err) {
+      this.logger.warn(`To'lov muddati push'i yuborilmadi (market ${saved.id}): ${(err as Error).message}`);
+    }
+    return true;
+  }
+
+  private async pushVendorCancelled(ownerUserId: string, order: MarketOrder): Promise<void> {
+    if (!this.notificationsService) return;
+    try {
+      const owner = await this.usersService.findById(ownerUserId);
+      if (owner) {
+        await this.notificationsService.notifyVendorOrderCancelled(owner, 'market', order.id, order.cancelReason);
+      }
+    } catch (err) {
+      this.logger.warn(`Bekor qilish push'i yuborilmadi (market ${order.id}): ${(err as Error).message}`);
+    }
   }
 
   /**
@@ -695,7 +1408,8 @@ export class MarketService {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
   }
 
   async getCustomerOrder(customerId: string, id: string) {
@@ -703,7 +1417,8 @@ export class MarketService {
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    return this.withDelivery(order);
+    const [shown] = await this.withHandoverCodes([await this.withDelivery(order)]);
+    return shown;
   }
 
   // ---------- admin ----------
@@ -743,15 +1458,32 @@ export class MarketService {
 
   // Content moderation — an admin reviewing products across every store, not
   // scoped to a single vendor's own catalog (see listProducts for that).
-  adminListProducts(): Promise<Product[]> {
-    return this.productRepo.find({ relations: ['store'], order: { createdAt: 'DESC' } });
+  async adminListProducts(
+    query: CatalogModerationQueryDto,
+  ): Promise<{ products: Product[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.store', 'store')
+      .orderBy('product.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    const search = query.search?.trim();
+    if (search) {
+      qb.where('(product.name ILIKE :q OR store.name ILIKE :q)', { q: likePattern(search) });
+    }
+    const [products, total] = await qb.getManyAndCount();
+    return { products, total, page, limit };
   }
 
-  async adminDeleteProduct(id: string): Promise<void> {
+  /** O'chirilgan mahsulotning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async adminDeleteProduct(id: string): Promise<string | null> {
     const product = await this.productRepo.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException('Product not found');
     }
     await this.productRepo.remove(product);
+    return product.imageKey;
   }
 }

@@ -16,8 +16,7 @@
 | Mobil (Flutter) | `mobile/lib/core/config/app_theme.dart` | **Asosiy manba kodi.** Barcha `k*` tokenlar shu yerda. |
 | Mobil (superapp) | `mobile/lib/features/superapp/widgets/ag_design.dart` | Faqat alias (`agGreen = kPrimaryDark`). O'z qiymatini e'lon qilmaydi. `app_theme.dart` ni re-export qiladi. |
 | Mobil (tashqi brend) | `mobile/lib/core/config/payment_brand_colors.dart` | **Dizayn tizimidan tashqarida.** Click/Payme ko'ki va karta chipi oltini — ataylab token qilinmaydi. |
-| Dispetcher | `web-manager/src/app/globals.css` + `tailwind.config.js` | Ishlaydigan referens implementatsiya. |
-| Boshqa panellar | `docs/design/globals-mint.css` + `docs/design/tailwind-mint.config.js` | **Tayyor nusxa** — to'g'ridan-to'g'ri ko'chiriladi. |
+| Web panellar (4 ta) | `web-manager/src/styles/tokens.css` + `web-manager/tailwind.preset.js` | **Yagona manba**, `scripts/sync-panel-ui.sh` bilan qolgan panellarga sync qilinadi (4.6-bo'lim). |
 
 ---
 
@@ -430,6 +429,36 @@ Doimiy animatsiyalar (shkaladan tashqari, ataylab): `shimmer 1.6s`,
 `pulse-ring 1.8s`.
 
 ---
+
+### 4.6. Web panel zichlik qatlami (2026-10-15)
+
+Faqat **4 ta web panel** uchun (Linear/Stripe yo'nalishi, to'liq asos:
+`docs/design/PANEL-UI-KIT.md` §2). **Ranglar o'zgarmaydi** — faqat shakl,
+soya va tipografika og'irligi. Mobil ilova 4.1–4.4 dagi qiymatlarni saqlaydi.
+
+| Token | Mobil / eski | Web panel | Izoh |
+|---|---|---|---|
+| `--radius-xs` | 8px | **6px** | badge, checkbox, kbd |
+| `--radius-sm` | 12px | **8px** | tugma, input, select, chip |
+| `--radius-md` | 16px | **10px** | karta, jadval konteyneri |
+| `--radius-lg` | 22px | **12px** | modal, katta panel |
+| `--radius-xl` | 28px | **14px** | drawer |
+| `--shadow-card` | blur 24px | `0 1px 2px ink/4%` | chegara `border-line` dan; karta "suzmaydi" |
+| `--shadow-hairline` | — | `0 0 0 1px line` + `0 1px 2px` | chegarasiz yuza uchun 1px halqa |
+| `--shadow-pop` | — | o'zgarishsiz | faqat popover / modal / dropdown |
+| `--shadow-cta`, `glow-*` | yashil glow | **`none`** | tugmada glow yo'q |
+| `--scrim` | `#04140F` inline | `4 20 15` (dark `0 0 0`) | `bg-scrim/55` — modal/drawer pardasi |
+| sarlavha og'irligi | 700–800 | **600** (h1 20 / h2 18 / h3 16), display 700 | |
+| matn | 14px | jadval 13, forma 14 | |
+
+Raqamlar: pul, son, foiz, vaqt — **sans + `tabular-nums`** (`.num` utility),
+monospace emas. `font-mono` faqat ID / davlat raqami / SKU / kod.
+
+Amalga oshirish: `web-manager/src/styles/tokens.css` (CSS o'zgaruvchilar,
+light + dark) va `web-manager/tailwind.preset.js` — `scripts/sync-panel-ui.sh`
+bilan qolgan 3 panelga ko'chiriladi (`--check` drift bo'lsa exit 1).
+Token **nomlari** o'zgarmadi (`rounded-ds-*`, `shadow-card`, `bg-surface` …),
+faqat qiymatlari.
 
 ## 5. Mobil'dagi qattiq kodlangan ranglar → token xaritasi
 

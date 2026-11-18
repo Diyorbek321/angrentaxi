@@ -15,6 +15,17 @@ extension OnlinePaymentProviderWire on OnlinePaymentProvider {
       };
 }
 
+/// Server `cardPaymentProviders` ro'yxatidan birinchi tanish provayder;
+/// ro'yxat bo'sh yoki noma'lum bo'lsa — Payme (eski xatti-harakat).
+OnlinePaymentProvider preferredOnlineProvider(List<String> configured) {
+  for (final wire in configured) {
+    for (final provider in OnlinePaymentProvider.values) {
+      if (provider.wireValue == wire) return provider;
+    }
+  }
+  return OnlinePaymentProvider.payme;
+}
+
 /// Thrown when POST /payments/initiate fails — carries a user-facing message
 /// already resolved via [extractErrorMessage].
 class PaymentException implements Exception {

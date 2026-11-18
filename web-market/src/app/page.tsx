@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authStorage } from '@/lib/auth';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { t } from '@/locales';
 
 /**
  * Entry gate. The authoritative check lives in the middleware; this only picks
@@ -23,11 +24,11 @@ export default function RootPage() {
   return (
     <div className="min-h-screen bg-bg p-6">
       <div className="mx-auto w-full max-w-md space-y-3" aria-busy="true" aria-live="polite">
-        <span className="sr-only">Yuklanmoqda</span>
+        <span className="sr-only">{t().common.loading}</span>
         <Skeleton className="h-12 w-12 rounded-ds-md" />
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-44 w-full rounded-ds-lg" />
+        <Skeleton className="h-44 w-full rounded-ds-md" />
       </div>
     </div>
   );

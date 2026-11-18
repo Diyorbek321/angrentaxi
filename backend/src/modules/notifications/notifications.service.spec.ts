@@ -20,7 +20,7 @@ describe('NotificationsService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
-  let firebaseService: { sendPush: jest.Mock };
+  let firebaseService: { sendPush: jest.Mock; sendDataPush: jest.Mock };
   let eskizService: { sendSms: jest.Mock };
 
   const baseUser = (overrides: Partial<User> = {}): User =>
@@ -58,7 +58,10 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
     };
-    firebaseService = { sendPush: jest.fn().mockResolvedValue(undefined) };
+    firebaseService = {
+      sendPush: jest.fn().mockResolvedValue(undefined),
+      sendDataPush: jest.fn().mockResolvedValue(undefined),
+    };
     eskizService = { sendSms: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -120,10 +123,54 @@ describe('NotificationsService', () => {
 
       await service.notifyNewOrderOffer(driver, baseOrder());
 
-      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(firebaseService.sendDataPush).not.toHaveBeenCalled();
       expect(notificationLogRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'driver-user-1', event: 'new_order_offer' }),
       );
+    });
+
+    it('notifyNewOrderOffer sends a data-only push carrying the text and offer deadline', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+      const expiresAt = Date.now() + 15_000;
+
+      await service.notifyNewOrderOffer(driver, baseOrder(), expiresAt);
+
+      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(firebaseService.sendDataPush).toHaveBeenCalledWith(
+        'driver-token',
+        expect.any(String),
+        expect.stringContaining('Amir Temur 1'),
+        expect.objectContaining({
+          event: 'new_order_offer',
+          orderId: 'order-1',
+          expiresAt: String(expiresAt),
+        }),
+        expiresAt,
+      );
+    });
+
+    it('notifyNewOrderOffer sends the server send time so the phone never compares against its own clock', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+      const now = 1_800_000_000_000;
+      const spy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      try {
+        await service.notifyNewOrderOffer(driver, baseOrder(), now + 15_000);
+      } finally {
+        spy.mockRestore();
+      }
+
+      const data = firebaseService.sendDataPush.mock.calls[0][3] as Record<string, string>;
+      expect(Number(data.expiresAt) - Number(data.sentAt)).toBe(15_000);
+    });
+
+    it('notifyNewOrderOffer without a deadline sends neither expiresAt nor sentAt', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+
+      await service.notifyNewOrderOffer(driver, baseOrder());
+
+      const data = firebaseService.sendDataPush.mock.calls[0][3] as Record<string, string>;
+      expect(data.expiresAt).toBeUndefined();
+      expect(data.sentAt).toBeUndefined();
     });
 
     it('notifyOrderCancelled persists a log row even when the target user has no fcmToken', async () => {
@@ -148,6 +195,34 @@ describe('NotificationsService', () => {
       );
     });
 
+    it('notifyBonusAwarded persists a log row even when the driver has no fcmToken', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: null });
+
+      await service.notifyBonusAwarded(driver, '50 ta safar bonusi', 25000);
+
+      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(notificationLogRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'driver-user-1', event: 'bonus_awarded' }),
+      );
+    });
+
+    it('notifyBonusAwarded names the bonus and the amount in the body', async () => {
+      // Haydovchi bildirishnomani ochmasdan turib "qaysi bonus, qancha pul"
+      // degan savolga javob olishi kerak — umumiy "sizga bonus berildi" emas.
+      const driver = baseUser({ id: 'driver-user-1' });
+
+      await service.notifyBonusAwarded(driver, '50 ta safar bonusi', 25000);
+
+      const [token, title, body, data] = firebaseService.sendPush.mock.calls[0];
+      expect(token).toBe('a-real-looking-fcm-token');
+      expect(title).toBe('Bonus hisobingizga tushdi');
+      expect(body).toContain('50 ta safar bonusi');
+      expect(body).toContain("so'm");
+      // Summa ajratilgan holda: "25 000", "25000" emas.
+      expect(body).toContain((25000).toLocaleString('uz-UZ'));
+      expect(data).toMatchObject({ event: 'bonus_awarded', amount: '25000' });
+    });
+
     it('still sends the push AND persists the log row when fcmToken is present', async () => {
       const passenger = baseUser();
 
@@ -155,8 +230,8 @@ describe('NotificationsService', () => {
 
       expect(firebaseService.sendPush).toHaveBeenCalledWith(
         'a-real-looking-fcm-token',
-        'Driver Arrived',
-        'Your driver has arrived at the pickup location',
+        'Haydovchi yetib keldi',
+        'Haydovchi olish joyida sizni kutmoqda',
         expect.objectContaining({ event: 'driver_arrived' }),
       );
       expect(notificationLogRepository.save).toHaveBeenCalled();

@@ -105,8 +105,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint: backend'da ESLint konfiguratsiyasi yo'q (.eslintrc* / eslint.config.*
-      # topilmadi), shuning uchun alohida lint qadami qo'shilmadi.
+      # Lint tur-xabardor rejimda ishlaydi (`projectService`), shuning uchun
+      # u typecheck'dan OLDIN turadi: sintaksis yoki tur muammosi bo'lsa
+      # ikkalasi ham yiqiladi, lekin lint xabari aniqroq bo'ladi.
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npx tsc --noEmit
 

@@ -8,6 +8,7 @@ import { DispatchOverride } from '../../database/entities/dispatch-override.enti
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import { Trip } from '../../database/entities/trip.entity';
 
 /**
  * `GET /orders?status=…` cast the raw query string straight to OrderStatus.
@@ -30,6 +31,8 @@ describe('OrdersQueryService.getAllOrders — status validation', () => {
           useValue: { findAndCount, query: jest.fn().mockResolvedValue([]) },
         },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
+        // `attachDisplayFields` endi safarlarni paketli o'qiydi.
+        { provide: getRepositoryToken(Trip), useValue: { find: jest.fn().mockResolvedValue([]) } },
         { provide: DriversService, useValue: { findByUserId: jest.fn() } },
       ],
     }).compile();

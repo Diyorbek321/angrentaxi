@@ -55,13 +55,21 @@ describe('PaymeProvider - verifyCallbackSignature()', () => {
     expect(provider.verifyCallbackSignature({}, basicAuth(SECRET_KEY))).toBe(true);
   });
 
-  it('accepts the sha1(merchantId + secretKey) digest when configured', () => {
+  // Payme Merchant API: `Authorization: Basic base64("Paycom:<KEY>")` — boshqa
+  // shakl (masalan sha1 dayjesti) spetsifikatsiyada yo'q va qabul qilinmaydi.
+  it('rejects the non-spec sha1(merchantId + secretKey) digest', () => {
     const provider = makeProvider(configured);
     const digest = createHash('sha1')
       .update(`${MERCHANT_ID}${SECRET_KEY}`)
       .digest('hex');
 
-    expect(provider.verifyCallbackSignature({}, basicAuth(digest))).toBe(true);
+    expect(provider.verifyCallbackSignature({}, basicAuth(digest))).toBe(false);
+  });
+
+  it('rejects a login other than "Paycom"', () => {
+    const provider = makeProvider(configured);
+
+    expect(provider.verifyCallbackSignature({}, basicAuth(SECRET_KEY, 'Admin'))).toBe(false);
   });
 
   it('rejects a wrong password when configured', () => {

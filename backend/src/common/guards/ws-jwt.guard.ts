@@ -1,15 +1,18 @@
-import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { UsersService } from '../../modules/users/users.service';
 import { UserStatus } from '../../database/entities/user.entity';
+import { DUAL_ROLE_LOGIN_ENV, scopeUserToToken } from '../../modules/auth/session-role';
 
 interface JwtPayload {
   sub: string;
   phone: string;
   role: string;
   type: 'access' | 'refresh';
+  app?: string;
 }
 
 @Injectable()
@@ -19,13 +22,15 @@ export class WsJwtGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    // Ixtiyoriy: qo'lda yig'iladigan spec'lar uchun. Yo'q bo'lsa flag default — yoqilgan.
+    @Optional() private readonly configService?: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const client = context.switchToWs().getClient<Socket>();
     const token =
       (client.handshake.auth as Record<string, string>)['token'] ||
-      (client.handshake.headers['authorization'] as string | undefined)?.split(' ')[1];
+      (client.handshake.headers['authorization'])?.split(' ')[1];
 
     if (!token) {
       throw new WsException('No authentication token provided');
@@ -53,7 +58,13 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Account is blocked');
       }
 
-      (client as Socket & { user: typeof user }).user = user;
+      // HTTP bilan bir xil faol rol (`session-role.ts`): yo'lovchi ilovasidagi
+      // haydovchi socket orqali ham haydovchi hodisalarini yubora olmaydi.
+      (client as Socket & { user: typeof user }).user = scopeUserToToken(
+        user,
+        payload.app,
+        this.configService?.get<unknown>(DUAL_ROLE_LOGIN_ENV),
+      );
       return true;
     } catch (err) {
       this.logger.warn(`WS auth failed: ${(err as Error).message}`);

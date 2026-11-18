@@ -4,6 +4,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { accountBlockedError } from './blocked-error';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -13,18 +14,31 @@ import { Otp } from '../../database/entities/otp.entity';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { EskizService } from '../notifications/eskiz.service';
+import { OTP_TTL_MINUTES, otpSmsText, smsLanguage } from '../notifications/sms-texts';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import {
   DEFAULT_ACCESS_TTL,
   DEFAULT_REFRESH_TTL,
   parseTtlToMs,
 } from './token-ttl.util';
+import { parseEnvBoolean } from '../../common/utils/env-boolean.util';
+import {
+  ClientApp,
+  DUAL_ROLE_LOGIN_ENV,
+  isClientApp,
+  isDualRoleLoginEnabled,
+  withSessionRole,
+} from './session-role';
 
 interface JwtPayload {
   sub: string;
   phone: string;
+  /** Sessiya roli (ma'lumot uchun) — huquq har so'rovda bazadan qayta hisoblanadi. */
   role: string;
   type: 'access' | 'refresh';
+  /** Kirilgan ilova; eski tokenlarda yo'q. `session-role.ts`. */
+  app?: ClientApp;
 }
 
 export interface TokenPair {
@@ -73,7 +87,7 @@ export class AuthService {
     private readonly eskizService: EskizService,
   ) {}
 
-  async sendOtp(phone: string): Promise<SendOtpResult> {
+  async sendOtp(phone: string, requestedLanguage: AppLanguage | null = null): Promise<SendOtpResult> {
     // Clean up expired OTPs for this phone
     await this.otpRepository.delete({
       phone,
@@ -86,9 +100,10 @@ export class AuthService {
       { isUsed: true },
     );
 
+    // ⚠️ Aniq o'qish: satr ("false") ham, validatsiyadan o'tgan boolean ham
+    // (`common/utils/env-boolean.util.ts`). Tushunarsiz qiymat — o'chiq.
     const bypassFlagSet =
-      this.configService.get<string>('OTP_BYPASS_ENABLED') === 'true' ||
-      this.configService.get<boolean>('OTP_BYPASS_ENABLED') === true;
+      parseEnvBoolean(this.configService.get<unknown>('OTP_BYPASS_ENABLED')) === true;
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
     const explicitlyAllowedInProd =
       this.configService.get<string>('ALLOW_OTP_BYPASS_IN_PROD') === 'true';
@@ -96,15 +111,24 @@ export class AuthService {
     // In production, OTP_BYPASS_ENABLED alone is not enough — a second, explicit
     // flag must also be set. This prevents a real launch from silently inheriting
     // a test-server config where every phone number logs in with a fixed code.
-    const otpBypassEnabled = isProduction
+    const globalBypass = isProduction
       ? bypassFlagSet && explicitlyAllowedInProd
       : bypassFlagSet;
-    const bypassCode = this.configService.get<string>('OTP_BYPASS_CODE') || '123456';
+
+    // Sinov raqamlari ro'yxati: yopiq sinovda SMS provayderisiz kirish uchun.
+    // Faqat sanab o'tilgan raqamlar, va faqat kod ATAYLAB berilgan bo'lsa —
+    // aks holda hamma biladigan '123456' standartiga tushib qolardi.
+    const explicitBypassCode = this.configService.get<string>('OTP_BYPASS_CODE');
+    const allowlistBypass =
+      !!explicitBypassCode && this.bypassPhones().has(phone);
+
+    const otpBypassEnabled = globalBypass || allowlistBypass;
+    const bypassCode = explicitBypassCode || '123456';
 
     // In dev/bypass mode use the fixed bypass code so testers can always log in
     // with a known value; otherwise generate a random 6-digit code.
     const code = otpBypassEnabled ? bypassCode : this.generateOtpCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
     await this.otpRepository.save({
       phone,
@@ -115,14 +139,37 @@ export class AuthService {
     });
 
     if (otpBypassEnabled) {
-      this.logger.warn(`OTP bypass enabled. Code for ${phone}: ${code}`);
-      return { message: 'OTP sent successfully', code };
+      // ⚠️ Kod telefon raqami bilan birga yozilmaydi — jurnal odatda
+      // kengroq doiraga ko'rinadi. Raqamning oxirgi to'rt belgisi
+      // qaysi hisob ekanini aniqlashga yetadi.
+      this.logger.warn(
+        `OTP bypass enabled for ...${phone.slice(-4)} — code is the configured bypass value`,
+      );
+
+      // ⚠️ Kodni javobda QAYTARISH alohida, AYNIQSA yoqiladigan imkoniyat.
+      //
+      // Ilgari shart `!isProduction` edi va u xavfni teskari qo'yardi:
+      // `NODE_ENV` ni o'rnatishni unutgan server eng ochiq holatga
+      // tushardi. Jonli serverda aynan shunday bo'ldi — `/auth/send-otp`
+      // javob tanasida yaroqli login kodini qaytarardi, ya'ni telefon
+      // raqamini bilgan har qanday odam istalgan hisobga kira olardi.
+      //
+      // Endi bitta o'zgaruvchining YO'QLIGI hech narsani ochmaydi: kodni
+      // ko'rish uchun `OTP_ECHO_CODE=true` ni ATAYLAB qo'yish kerak.
+      // Ishlab chiquvchi uchun bu yo'qotish emas — kod baribir server
+      // jurnalida turibdi.
+      const echoCode = this.configService.get<string>('OTP_ECHO_CODE') === 'true';
+
+      return echoCode
+        ? { message: 'OTP sent successfully', code }
+        : { message: 'OTP sent successfully' };
     }
 
-    await this.eskizService.sendSms(
-      phone,
-      `Angren Taxi: Your verification code is ${code}. Valid for 5 minutes.`,
+    const language = smsLanguage(
+      requestedLanguage,
+      this.configService.get<string>('ESKIZ_RU_TEMPLATE_APPROVED') === 'true',
     );
+    await this.eskizService.sendSms(phone, otpSmsText(code, language));
 
     return { message: 'OTP sent successfully' };
   }
@@ -131,6 +178,7 @@ export class AuthService {
     phone: string,
     code: string,
     context: SessionContext = {},
+    app?: ClientApp,
   ): Promise<AuthResult> {
     const otp = await this.otpRepository.findOne({
       where: {
@@ -172,12 +220,16 @@ export class AuthService {
     }
 
     if (user.status === UserStatus.BLOCKED) {
-      throw new UnauthorizedException('Account is blocked');
+      throw accountBlockedError(user);
     }
 
-    const tokens = await this.issueTokenPair(user, context);
+    const tokens = await this.issueTokenPair(user, context, app);
 
-    return { ...tokens, user };
+    // Javobdagi `role` — SESSIYA roli: ilova o'z darvozasini shu bilan
+    // tekshiradi (`app_role_gate.dart`). Flag o'chiq bo'lsa haydovchi
+    // yo'lovchi ilovasida `driver` oladi va ilova uni eski xabar bilan
+    // rad etadi — B reja ilovani qayta yig'masdan ishlaydi.
+    return { ...tokens, user: withSessionRole(user, app, this.dualRoleEnabled()) };
   }
 
   // Counts one wrong-code guess against the phone's live OTP and burns the code
@@ -274,13 +326,18 @@ export class AuthService {
       }
 
       if (user.status === UserStatus.BLOCKED) {
-        throw new UnauthorizedException('Account is blocked');
+        throw accountBlockedError(user);
       }
 
-      const tokens = await this.issueTokenPair(user, {
-        userAgent: context.userAgent ?? stored.userAgent,
-        ip: context.ip ?? stored.ip,
-      });
+      // Ilova sessiya davomida o'zgarmaydi: yangi juftlik eski token `app` ini oladi.
+      const tokens = await this.issueTokenPair(
+        user,
+        {
+          userAgent: context.userAgent ?? stored.userAgent,
+          ip: context.ip ?? stored.ip,
+        },
+        isClientApp(payload.app) ? payload.app : undefined,
+      );
 
       await this.refreshTokenRepository.update(stored.id, {
         revokedAt: new Date(),
@@ -323,11 +380,13 @@ export class AuthService {
   private async issueTokenPair(
     user: User,
     context: SessionContext = {},
+    app?: ClientApp,
   ): Promise<TokenPair> {
     const payload: Omit<JwtPayload, 'type'> = {
       sub: user.id,
       phone: user.phone,
-      role: user.role,
+      role: withSessionRole(user, app, this.dualRoleEnabled()).role,
+      ...(app ? { app } : {}),
     };
 
     const accessToken = this.jwtService.sign(
@@ -352,6 +411,10 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private dualRoleEnabled(): boolean {
+    return isDualRoleLoginEnabled(this.configService.get<unknown>(DUAL_ROLE_LOGIN_ENV));
   }
 
   // See token-ttl.util.ts for why the defaults are still 7d / 30d.
@@ -386,5 +449,17 @@ export class AuthService {
   // search space for the next one. Range is [100000, 1000000) => 6 digits.
   private generateOtpCode(): string {
     return randomInt(100000, 1000000).toString();
+  }
+
+  // `OTP_BYPASS_PHONES` — vergul bilan ajratilgan E.164 raqamlar. Bo'sh
+  // elementlar tashlanadi, shuning uchun buzuq qiymat hech kimni ochmaydi.
+  private bypassPhones(): Set<string> {
+    const raw = this.configService.get<string>('OTP_BYPASS_PHONES') ?? '';
+    return new Set(
+      raw
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    );
   }
 }

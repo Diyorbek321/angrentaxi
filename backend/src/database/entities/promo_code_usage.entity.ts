@@ -42,6 +42,14 @@ export class PromoCodeUsage {
   @Column({ name: 'order_id', nullable: true, type: 'uuid' })
   orderId: string | null;
 
+  // Ovqat/market buyurtmasida ishlatilgan (migratsiya 031). `order_id` —
+  // faqat `orders` jadvali (taksi/yuk/posilka) uchun FK.
+  @Column({ name: 'food_order_id', nullable: true, type: 'uuid' })
+  foodOrderId: string | null;
+
+  @Column({ name: 'market_order_id', nullable: true, type: 'uuid' })
+  marketOrderId: string | null;
+
   @CreateDateColumn({ name: 'used_at' })
   usedAt: Date;
 }

@@ -9,12 +9,14 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
+import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -107,6 +109,9 @@ void main() {
     market = MarketProvider(apiClient: apiClient, socketService: SocketService());
     food = FoodProvider(apiClient: apiClient, socketService: SocketService());
 
+    // Karta provayderi sozlangan server (INCIDENT-POLICY §1); sozlanmagan
+    // holat alohida testlarda.
+    superapp.debugSetCardPaymentsForTest(available: true);
     superapp.setActiveContext('market', 'store-1');
     superapp.addToCart(const CartItem(
       id: 'p1',
@@ -143,6 +148,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SuperappProvider>.value(value: superapp),
           ChangeNotifierProvider<MarketProvider>.value(value: market),
+          ChangeNotifierProvider<FavoritesProvider>(create: (_) => FavoritesProvider(apiClient: apiClient)),
           ChangeNotifierProvider<FoodProvider>.value(value: food),
         ],
         child: MaterialApp(
@@ -289,4 +295,71 @@ void main() {
           ));
     },
   );
+
+  testWidgets('tanlangan to\'lov usuli serverga yuboriladi (karta — card)', (tester) async {
+    when(() => apiClient.post(any(that: contains('/payments/initiate')), data: any(named: 'data')))
+        .thenAnswer((_) async => _jsonResponse('/payments/initiate', {'url': 'https://x', 'id': 't', 'provider': 'payme'}));
+    await pumpCheckout(tester, openPaymentCheckout: (context, result) async => true);
+    await selectCardPayment(tester);
+    await tester.tap(find.text('Buyurtmani tasdiqlash'));
+    await tester.pumpAndSettle();
+
+    final body = verify(() => apiClient.post('/market/orders', data: captureAny(named: 'data')))
+        .captured
+        .single as Map<String, dynamic>;
+    // Ilgari umuman yuborilmasdi — server naqd deb yozardi va kuryer
+    // karta bilan to'lagan mijozdan pul so'rardi.
+    expect(body['paymentMethod'], 'card');
+  });
+
+  testWidgets('naqd chegarasidan oshgan savatda naqd tanlab bo\'lmaydi', (tester) async {
+    superapp.debugSetMaxCashVendorOrderForTest(20000); // savat: 20 000 + yetkazish
+    await pumpCheckout(tester);
+
+    expect(find.text('Karta (Payme / Click)'), findsOneWidget,
+        reason: 'naqd ruxsat etilmasa usul avtomatik karta bo\'ladi');
+    expect(find.textContaining("Naqd to'lov"), findsOneWidget);
+
+    await tester.tap(find.text("To'lov usuli"));
+    await tester.pumpAndSettle();
+    final cashTile = tester.widget<RadioListTile<CheckoutPaymentMethod>>(
+      find.widgetWithText(RadioListTile<CheckoutPaymentMethod>, 'Naqd pul'),
+    );
+    expect(cashTile.onChanged, isNull);
+  });
+
+  group('karta provayderi sozlanmagan (INCIDENT-POLICY §1)', () {
+    setUp(() => superapp.debugSetCardPaymentsForTest(available: false));
+
+    testWidgets('karta tanlovi ko\'rsatilmaydi, buyurtma naqd ketadi', (tester) async {
+      await pumpCheckout(tester);
+      await tester.tap(find.text("To'lov usuli"));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(RadioListTile<CheckoutPaymentMethod>, 'Karta (Payme / Click)'), findsNothing);
+      expect(find.widgetWithText(RadioListTile<CheckoutPaymentMethod>, 'Naqd pul'), findsOneWidget);
+      // Varaqni yopish (naqd allaqachon tanlangan).
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Buyurtmani tasdiqlash'));
+      await tester.pumpAndSettle();
+      final body = verify(() => apiClient.post('/market/orders', data: captureAny(named: 'data')))
+          .captured
+          .single as Map<String, dynamic>;
+      expect(body['paymentMethod'], 'cash');
+    });
+
+    testWidgets('naqd chegarasidan oshgan savat — tasdiqlash o\'chiq, sababi yozilgan', (tester) async {
+      superapp.debugSetMaxCashVendorOrderForTest(20000); // savat: 20 000 + yetkazish
+      await pumpCheckout(tester);
+
+      expect(find.textContaining('karta orqali to\'lov esa hozircha mavjud emas'), findsOneWidget);
+      final button = tester.widget<AgPrimaryButton>(find.widgetWithText(AgPrimaryButton, 'Buyurtmani tasdiqlash'));
+      expect(button.onPressed, isNull);
+
+      await tester.tap(find.text('Buyurtmani tasdiqlash'));
+      await tester.pumpAndSettle();
+      verifyNever(() => apiClient.post('/market/orders', data: any(named: 'data')));
+    });
+  });
 }

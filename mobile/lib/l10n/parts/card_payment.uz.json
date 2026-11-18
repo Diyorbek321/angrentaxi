@@ -1,0 +1,14 @@
+{
+  "saCheckoutBlockedNoCard": "Naqd to'lov {limit} so'mgacha, karta orqali to'lov esa hozircha mavjud emas. Buyurtma berish uchun savatni kamaytiring.",
+  "@saCheckoutBlockedNoCard": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "saPaymentPendingTitle": "To'lov kutilmoqda",
+  "saPaymentPendingHint": "Karta to'lovi tugallanmagan. Sotuvchi buyurtmani to'lovdan keyin qabul qiladi; to'lanmasa buyurtma avtomatik bekor qilinadi.",
+  "saPaymentRetry": "Karta bilan to'lash",
+  "saPaymentReceived": "To'lov qabul qilindi"
+}

@@ -8,12 +8,16 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
-import { Order, PaymentMethod } from '../../database/entities/order.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
+import { Order } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { PAYOUT_PROVIDER } from './payout.interface';
+import { DriversService } from '../drivers/drivers.service';
 
 /**
  * Regression coverage for the requestWithdrawal() TOCTOU race: it used to
@@ -122,11 +126,31 @@ describe('PaymentsService - requestWithdrawal race guard', () => {
         PaymentsService,
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
         { provide: getRepositoryToken(Order), useValue: {} },
+        { provide: getRepositoryToken(MarketOrder), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(FoodOrder), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(User), useValue: {} },
         { provide: getRepositoryToken(WithdrawalRequest), useValue: withdrawalRepository },
         { provide: PaymeProvider, useValue: {} },
         { provide: ClickProvider, useValue: {} },
         { provide: UzcardProvider, useValue: {} },
+        // Pul CHIQARISH adapteri. Qo'lda o'tkazma hech qanday tarmoqqa
+        // chiqmaydi, shuning uchun mock ham shunchaki natija qaytaradi.
+        {
+          provide: PAYOUT_PROVIDER,
+          useValue: {
+            name: 'manual',
+            send: jest.fn().mockResolvedValue({ reference: null, settled: true }),
+          },
+        },
+        // settleOrderPayout credits drivers.balance once a card payment lands.
+        {
+          provide: DriversService,
+          useValue: { adjustBalanceWithin: jest.fn().mockResolvedValue({
+            driverId: 'driver-profile-1',
+            newBalance: 0,
+            wentOffline: false,
+          }) },
+        },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -157,14 +181,14 @@ describe('PaymentsService - requestWithdrawal race guard', () => {
 
     // The loser must fail loudly with BadRequestException, never silently
     // succeed or throw something else.
-    const rejection = rejected[0] as PromiseRejectedResult;
+    const rejection = rejected[0];
     expect(rejection.reason).toBeInstanceOf(BadRequestException);
 
     // Only the winner's withdrawal + hold transaction were persisted.
     expect(withdrawalRepository.save).toHaveBeenCalledTimes(1);
     expect(transactionRepository.save).toHaveBeenCalledTimes(1);
 
-    const winner = (fulfilled[0] as PromiseFulfilledResult<WithdrawalRequest>).value;
+    const winner = (fulfilled[0]).value;
     expect(winner.status).toBe(WithdrawalStatus.PENDING);
     expect(winner.amount).toBe(70000);
 

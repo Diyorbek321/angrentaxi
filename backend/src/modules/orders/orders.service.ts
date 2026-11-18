@@ -4,6 +4,7 @@
 // that preserves the single injectable surface every other module already
 // depends on (controller, matching, realtime, safety, trip-chat, food,
 // market...) so splitting the implementation stayed a no-op for callers.
+import type { CancelFeeQuote } from './taxi-cancel-policy';
 import { Injectable } from '@nestjs/common';
 import { Order } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
@@ -16,6 +17,10 @@ import { OrdersLifecycleService } from './orders-lifecycle.service';
 import { OrdersCompletionService } from './orders-completion.service';
 import { OrdersDispatchService } from './orders-dispatch.service';
 import { OrdersQueryService } from './orders-query.service';
+import { OrdersReceiptService } from './orders-receipt.service';
+import { OrdersTipsService } from './orders-tips.service';
+import { AddTipDto } from './dto/add-tip.dto';
+import { OrderReceiptDto } from './dto/order-receipt.dto';
 import { OrdersEarningsService } from './orders-earnings.service';
 import { OrdersStatsService } from './orders-stats.service';
 import { DriverEarningsBreakdown, PaginatedOrders } from './orders.types';
@@ -32,6 +37,8 @@ export class OrdersService {
     private readonly completionService: OrdersCompletionService,
     private readonly dispatchService: OrdersDispatchService,
     private readonly queryService: OrdersQueryService,
+    private readonly receiptService: OrdersReceiptService,
+    private readonly tipsService: OrdersTipsService,
     private readonly earningsService: OrdersEarningsService,
     private readonly statsService: OrdersStatsService,
   ) {}
@@ -40,12 +47,16 @@ export class OrdersService {
 
   calculatePrice(
     dto: CalculatePriceDto,
-  ): Promise<{ price: number; tariffId: string; distanceKm: number; durationMin: number }> {
+  ): ReturnType<OrdersCreationService['calculatePrice']> {
     return this.creationService.calculatePrice(dto);
   }
 
-  create(passengerId: string, dto: CreateOrderDto): Promise<Order> {
-    return this.creationService.create(passengerId, dto);
+  create(
+    passengerId: string,
+    dto: CreateOrderDto,
+    options?: { agreedFare?: number; requireParcelDeclaration?: boolean },
+  ): Promise<Order> {
+    return this.creationService.create(passengerId, dto, options);
   }
 
   createForDispatch(dto: CreateDispatchOrderDto): Promise<Order> {
@@ -66,8 +77,12 @@ export class OrdersService {
     return this.lifecycleService.startTrip(driverId, orderId);
   }
 
-  completeTrip(driverId: string, orderId: string): Promise<Order> {
-    return this.completionService.completeTrip(driverId, orderId);
+  completeTrip(driverId: string, orderId: string, deliveryPin?: string): Promise<Order> {
+    return this.completionService.completeTrip(driverId, orderId, deliveryPin);
+  }
+
+  completeByDispatcher(orderId: string): Promise<Order> {
+    return this.completionService.completeByDispatcher(orderId);
   }
 
   // --- Dispatcher overrides & cancellation ---
@@ -91,8 +106,19 @@ export class OrdersService {
     userRole: UserRole,
     orderId: string,
     reason?: string,
+    options: { expectedFee?: number; legacyClient?: boolean } = {},
   ): Promise<Order> {
-    return this.dispatchService.cancelOrder(userId, userRole, orderId, reason);
+    return this.dispatchService.cancelOrder(userId, userRole, orderId, reason, options);
+  }
+
+  /** Yo'lovchi hozir bekor qilsa jarima (INCIDENT-POLICY §5). */
+  quoteCancelFee(userId: string, userRole: UserRole, orderId: string): Promise<CancelFeeQuote> {
+    return this.dispatchService.quoteCancelFee(userId, userRole, orderId);
+  }
+
+  /** Haydovchi: "Yo'lovchi chiqmadi" (§5). */
+  markNoShow(driverUserId: string, orderId: string): Promise<Order> {
+    return this.dispatchService.markNoShow(driverUserId, orderId);
   }
 
   // --- Reads ---
@@ -103,6 +129,23 @@ export class OrdersService {
 
   findByIdForUser(id: string, user: { id: string; role: UserRole }): Promise<Order> {
     return this.queryService.findByIdForUser(id, user);
+  }
+
+  /** Tugagan safar cheki. Kirish huquqi `findByIdForUser` bilan bir xil. */
+  getReceipt(
+    id: string,
+    user: { id: string; role: UserRole },
+  ): Promise<OrderReceiptDto> {
+    return this.receiptService.getReceipt(id, user);
+  }
+
+  /** Haydovchiga chaqim — komissiyasiz, hamyondan. */
+  addTip(
+    passengerId: string,
+    orderId: string,
+    dto: AddTipDto,
+  ): Promise<{ tipAmount: number; walletBalance: number }> {
+    return this.tipsService.addTip(passengerId, orderId, dto);
   }
 
   getPassengerHistory(
@@ -123,6 +166,11 @@ export class OrdersService {
 
   getActiveOrders(): Promise<Order[]> {
     return this.queryService.getActiveOrders();
+  }
+
+  /** Yo'lovchining kelgusi rejalashtirilgan safarlari. */
+  getScheduledOrders(passengerId: string): Promise<Order[]> {
+    return this.queryService.getScheduledOrders(passengerId);
   }
 
   getAllOrders(

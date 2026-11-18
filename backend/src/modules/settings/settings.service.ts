@@ -1,14 +1,144 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlatformSettings } from '../../database/entities/platform-settings.entity';
+import { normalizeTripOptionFees, TripOptionFees } from '../orders/trip-option-fees';
+import { isLaunchPromoActive } from '../orders/commission-policy';
+import {
+  CommissionSettings,
+  CompletionFinancePolicy,
+  LegalComplianceSettings,
+  LegalComplianceSettingsChanges,
+  PublicSettings,
+  IntercitySettings,
+  IntercitySettingsChanges,
+  ShiftPassSettings,
+  ShiftPassSettingsChanges,
+  VendorSettlementSettings,
+  VendorSettlementSettingsChanges,
+  WalletTopupSettings,
+  WalletTopupSettingsChanges,
+} from './legal-compliance-settings';
+import {
+  VendorSettlementMode,
+  effectiveVendorSettlementMode,
+} from '../delivery/vendor-settlement-mode';
+import {
+  DEFAULT_DELIVERY_ETA_MAX_MINUTES,
+  DEFAULT_DELIVERY_ETA_MIN_MINUTES,
+  DEFAULT_FREE_DELIVERY_FROM,
+  DeliveryEta,
+  DeliveryPricing,
+  assertDeliveryEtaRange,
+} from './delivery-pricing';
+import { CardPaymentProvider, configuredCardProviders } from '../payments/card-availability';
+import {
+  DELIVERY_INCIDENT_FIELDS,
+  DeliveryIncidentSettings,
+  toDeliveryIncidentSettings,
+} from './delivery-incident-settings';
+import {
+  INCIDENT_SETTINGS_FIELDS,
+  IncidentSettings,
+  strikeLadderError,
+  toIncidentSettings,
+} from './incident-settings';
+import {
+  SAFETY_POLICY_FIELDS,
+  SafetyPolicySettings,
+  toSafetyPolicySettings,
+} from './safety-policy-settings';
+
+/** `GET/PATCH /settings/global` shakli. */
+export interface GlobalSettings
+  extends DeliveryEta,
+    DeliveryIncidentSettings,
+    IncidentSettings,
+    SafetyPolicySettings {
+  platformName: string;
+  supportPhone: string;
+  supportEmail: string;
+  maintenanceMode: boolean;
+  deliveryFee: number;
+  maxCashVendorOrder: number;
+  /** Bepul yetkazish chegarasi, so'm; 0 — o'chiq. */
+  freeDeliveryFrom: number;
+  /** To'lanmagan kartali ovqat/market buyurtmasi shuncha daqiqada bekor (§1). */
+  cardPaymentTimeoutMinutes: number;
+}
+
+export type GlobalSettingsChanges = Partial<GlobalSettings>;
+
+/**
+ * PATCH faqat shu ustunlarga yozadi — DTO'dan tashqari kalit (`id`,
+ * komissiya, STIR...) `repository.update` ga hech qachon o'tmaydi.
+ */
+const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
+  'platformName',
+  'supportPhone',
+  'supportEmail',
+  'maintenanceMode',
+  'deliveryFee',
+  'maxCashVendorOrder',
+  'freeDeliveryFrom',
+  'deliveryEtaMinMinutes',
+  'deliveryEtaMaxMinutes',
+  'cardPaymentTimeoutMinutes',
+  // Yetkazish hodisalari (INCIDENT-POLICY §2, migratsiya 049).
+  ...DELIVERY_INCIDENT_FIELDS,
+  // Shikoyat va hodisa (INCIDENT-POLICY §3, migratsiya 050).
+  ...INCIDENT_SETTINGS_FIELDS,
+  // Xavfsizlik, taksi jarimalari, saqlash muddati (§4–§6, migratsiyalar 051–053).
+  ...SAFETY_POLICY_FIELDS,
+];
+
+/** Ustun qo'shilmagan eski qatorda — migratsiya 047 standarti. */
+export const DEFAULT_CARD_PAYMENT_TIMEOUT_MINUTES = 15;
 
 @Injectable()
 export class SettingsService {
   constructor(
     @InjectRepository(PlatformSettings)
     private readonly settingsRepository: Repository<PlatformSettings>,
+    // Karta provayderi kalitlari (`payments/card-availability.ts`).
+    // Ixtiyoriy — qo'lda yig'iladigan spec'lar uchun (u holda karta yo'q).
+    @Optional() private readonly config?: ConfigService,
   ) {}
+
+  /**
+   * Karta to'lovi mavjudmi — kamida bitta provayder (Payme/Click/Uzcard)
+   * sozlangan (docs/INCIDENT-POLICY.md §1). Yo'q bo'lsa ilova karta
+   * tanlovini yashiradi va server kartali buyurtmani rad etadi.
+   */
+  cardPaymentsAvailable(): boolean {
+    return this.cardPaymentProviders().length > 0;
+  }
+
+  /** Sozlangan karta provayderlari (`payme`, `click`, `uzcard`). */
+  cardPaymentProviders(): CardPaymentProvider[] {
+    return this.config ? configuredCardProviders(this.config) : [];
+  }
+
+  /** Yetkazish hodisalari sozlamalari (§2). */
+  async getDeliveryIncidentSettings(): Promise<DeliveryIncidentSettings> {
+    return toDeliveryIncidentSettings(await this.getOrCreate());
+  }
+
+  /** Shikoyat va hodisa sozlamalari (§3). */
+  async getIncidentSettings(): Promise<IncidentSettings> {
+    return toIncidentSettings(await this.getOrCreate());
+  }
+
+  /** Xavfsizlik / taksi jarimalari / saqlash muddati sozlamalari (§4–§6). */
+  async getSafetyPolicySettings(): Promise<SafetyPolicySettings> {
+    return toSafetyPolicySettings(await this.getOrCreate());
+  }
+
+  /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
+  async getCardPaymentTimeoutMinutes(): Promise<number> {
+    return toCardPaymentTimeoutMinutes(await this.getOrCreate());
+  }
 
   // The single settings row is created lazily on first access rather than via
   // a seed migration, so a fresh DB never has to run one just for this.
@@ -23,9 +153,9 @@ export class SettingsService {
     return settings.defaultCommissionRate;
   }
 
-  async getCommissionSettings(): Promise<{ defaultCommissionRate: number }> {
+  async getCommissionSettings(): Promise<CommissionSettings> {
     const settings = await this.getOrCreate();
-    return { defaultCommissionRate: settings.defaultCommissionRate };
+    return toCommissionSettings(settings);
   }
 
   async setDefaultCommissionRate(rate: number): Promise<{ defaultCommissionRate: number }> {
@@ -34,29 +164,438 @@ export class SettingsService {
     return { defaultCommissionRate: rate };
   }
 
-  async getGlobalSettings(): Promise<{
-    platformName: string;
-    supportPhone: string;
-    supportEmail: string;
-    maintenanceMode: boolean;
-  }> {
-    const { platformName, supportPhone, supportEmail, maintenanceMode } = await this.getOrCreate();
-    return { platformName, supportPhone, supportEmail, maintenanceMode };
+  /**
+   * Ishga tushirish aksiyasi: shu sanagacha taksi komissiyasi 0
+   * (`commission-policy.ts`). `null` — aksiyani o'chiradi.
+   */
+  async setLaunchPromoCommissionUntil(until: string | null): Promise<CommissionSettings> {
+    const settings = await this.getOrCreate();
+    const launchPromoCommissionUntil = parseOptionalDate(until, 'launchPromoCommissionUntil');
+    await this.settingsRepository.update(settings.id, { launchPromoCommissionUntil });
+    return toCommissionSettings({ ...settings, launchPromoCommissionUntil });
   }
 
-  async updateGlobalSettings(dto: {
-    platformName?: string;
-    supportPhone?: string;
-    supportEmail?: string;
-    maintenanceMode?: boolean;
-  }): Promise<{
-    platformName: string;
-    supportPhone: string;
-    supportEmail: string;
-    maintenanceMode: boolean;
-  }> {
-    const settings = await this.getOrCreate();
-    await this.settingsRepository.update(settings.id, dto);
-    return this.getGlobalSettings();
+  /** VMQ 200 / PQ-247 sozlamalari (docs/LEGAL-COMPLIANCE.md). */
+  async getLegalComplianceSettings(): Promise<LegalComplianceSettings> {
+    return toLegalComplianceSettings(await this.getOrCreate());
   }
+
+  /** Faqat yuborilgan maydonlar o'zgaradi; `legalComplianceEnforcedFrom: null` — o'chiradi. */
+  async updateLegalComplianceSettings(
+    changes: LegalComplianceSettingsChanges,
+  ): Promise<LegalComplianceSettings> {
+    const settings = await this.getOrCreate();
+    const { legalComplianceEnforcedFrom, platformTin, ...rest } = changes;
+    if (platformTin !== undefined && platformTin !== null && !/^\d{9}$/.test(platformTin)) {
+      throw new BadRequestException("platformTin: STIR 9 ta raqamdan iborat bo'lishi kerak");
+    }
+    const update: Partial<PlatformSettings> = {
+      ...(platformTin !== undefined && { platformTin }),
+      ...(legalComplianceEnforcedFrom !== undefined && {
+        legalComplianceEnforcedFrom: parseOptionalDate(
+          legalComplianceEnforcedFrom,
+          'legalComplianceEnforcedFrom',
+        ),
+      }),
+      ...Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined)),
+    };
+    await this.settingsRepository.update(settings.id, update);
+    return toLegalComplianceSettings({ ...settings, ...update });
+  }
+
+  /**
+   * Safar yakunida pul hisobiga kerak bo'ladigan hamma narsa — bitta o'qish
+   * (`OrdersCompletionService` → `FinancePolicyService`).
+   */
+  async getCompletionFinancePolicy(): Promise<CompletionFinancePolicy> {
+    const settings = await this.getOrCreate();
+    return {
+      defaultCommissionRate: settings.defaultCommissionRate,
+      launchPromoCommissionUntil: settings.launchPromoCommissionUntil ?? null,
+      taxWithholding: {
+        enabled: settings.taxWithholdingEnabled === true,
+        ratePercent: settings.driverTaxWithholdingRate,
+      },
+    };
+  }
+
+  /** Sotuvchi bilan hisob-kitob rejimi (e-tijorat qonuni 23-modda). */
+  async getVendorSettlementSettings(): Promise<VendorSettlementSettings> {
+    return toVendorSettlementSettings(await this.getOrCreate(), new Date());
+  }
+
+  /** Hozir amaldagi rejim — `VendorCashService` shuni o'qiydi. */
+  async getEffectiveVendorSettlementMode(): Promise<VendorSettlementMode> {
+    const settings = await this.getOrCreate();
+    return effectiveVendorSettlementMode(
+      settings.vendorSettlementMode,
+      settings.vendorWalletSettlementFrom ?? null,
+      new Date(),
+    );
+  }
+
+  async updateVendorSettlementSettings(
+    changes: VendorSettlementSettingsChanges,
+  ): Promise<VendorSettlementSettings> {
+    const settings = await this.getOrCreate();
+    const update: Partial<PlatformSettings> = {
+      ...(changes.vendorSettlementMode !== undefined && {
+        vendorSettlementMode: changes.vendorSettlementMode,
+      }),
+      ...(changes.vendorWalletSettlementFrom !== undefined && {
+        vendorWalletSettlementFrom: parseOptionalDate(
+          changes.vendorWalletSettlementFrom,
+          'vendorWalletSettlementFrom',
+        ),
+      }),
+    };
+    await this.settingsRepository.update(settings.id, update);
+    return toVendorSettlementSettings({ ...settings, ...update }, new Date());
+  }
+
+  /** Smena (kunlik obuna) sozlamalari. */
+  async getShiftPassSettings(): Promise<ShiftPassSettings> {
+    return toShiftPassSettings(await this.getOrCreate());
+  }
+
+  /** Shaharlararo qatnov (migratsiya 034) — standart o'chiq. */
+  async getIntercitySettings(): Promise<IntercitySettings> {
+    return toIntercitySettings(await this.getOrCreate());
+  }
+
+  /** `IntercityModule` har so'rovda shunga qaraydi: o'chiq bo'lsa 404. */
+  async isIntercityEnabled(): Promise<boolean> {
+    return (await this.getIntercitySettings()).intercityEnabled;
+  }
+
+  async updateIntercitySettings(changes: IntercitySettingsChanges): Promise<IntercitySettings> {
+    const settings = await this.getOrCreate();
+    // Faqat yuborilgan maydonlar yoziladi — `undefined` lar tashlanadi.
+    const update: Partial<PlatformSettings> = Object.fromEntries(
+      Object.entries(changes).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(update).length === 0) return toIntercitySettings(settings);
+    await this.settingsRepository.update(settings.id, update);
+    return toIntercitySettings({ ...settings, ...update });
+  }
+
+  async updateShiftPassSettings(changes: ShiftPassSettingsChanges): Promise<ShiftPassSettings> {
+    const settings = await this.getOrCreate();
+    const { shiftPassServiceTypes, ...rest } = changes;
+    const update: Partial<PlatformSettings> = {
+      ...Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined)),
+      ...(shiftPassServiceTypes !== undefined && {
+        shiftPassServiceTypes: [...new Set(shiftPassServiceTypes)],
+      }),
+    };
+    await this.settingsRepository.update(settings.id, update);
+    return toShiftPassSettings({ ...settings, ...update });
+  }
+
+  /** Platforma STIR'i — `principal_type = 'platform'` fiskal yozuvlari uchun. */
+  async getPlatformTin(): Promise<string | null> {
+    return (await this.getOrCreate()).platformTin ?? null;
+  }
+
+  /** Hamyonni to'ldirish sozlamalari (§11). */
+  async getWalletTopupSettings(): Promise<WalletTopupSettings> {
+    return toWalletTopupSettings(await this.getOrCreate());
+  }
+
+  /**
+   * Faqat yuborilgan maydonlar o'zgaradi. Natija baribir izchil bo'lishi
+   * shart: `min ≤ max` va har bir tezkor tugma shu oraliqda — aks holda
+   * ilova bosilganda rad etiladigan tugmani ko'rsatardi.
+   */
+  async updateWalletTopupSettings(changes: WalletTopupSettingsChanges): Promise<WalletTopupSettings> {
+    const settings = await this.getOrCreate();
+    const current = toWalletTopupSettings(settings);
+    const next: WalletTopupSettings = {
+      walletTopupEnabled: changes.walletTopupEnabled ?? current.walletTopupEnabled,
+      walletTopupMin: changes.walletTopupMin ?? current.walletTopupMin,
+      walletTopupMax: changes.walletTopupMax ?? current.walletTopupMax,
+      walletTopupPresets:
+        changes.walletTopupPresets !== undefined
+          ? [...new Set(changes.walletTopupPresets)].sort((a, b) => a - b)
+          : current.walletTopupPresets,
+      walletTopupHoldDays: changes.walletTopupHoldDays ?? current.walletTopupHoldDays,
+      manualAdjustmentManagerLimit: changes.manualAdjustmentManagerLimit ?? current.manualAdjustmentManagerLimit,
+    };
+    if (next.walletTopupMin > next.walletTopupMax) {
+      throw new BadRequestException("walletTopupMin walletTopupMax dan katta bo'lishi mumkin emas");
+    }
+    const outOfRange = next.walletTopupPresets.find(
+      (preset) => preset < next.walletTopupMin || preset > next.walletTopupMax,
+    );
+    if (outOfRange !== undefined) {
+      throw new BadRequestException(
+        `walletTopupPresets: ${outOfRange} so'm ${next.walletTopupMin}–${next.walletTopupMax} oralig'idan tashqarida`,
+      );
+    }
+    await this.settingsRepository.update(settings.id, { ...next });
+    return next;
+  }
+
+  /** `GET /settings/public` — mijoz/kuryer/sotuvchi ilovalari uchun. */
+  async getPublicSettings(): Promise<PublicSettings> {
+    const settings = await this.getOrCreate();
+    const vendor = toVendorSettlementSettings(settings, new Date());
+    return {
+      platformName: settings.platformName,
+      supportPhone: settings.supportPhone,
+      deliveryFee: settings.deliveryFee,
+      maxCashVendorOrder: settings.maxCashVendorOrder,
+      // Ilova karta tanlovini shunga qarab ko'rsatadi/yashiradi (§1).
+      cardPaymentsAvailable: this.cardPaymentsAvailable(),
+      cardPaymentProviders: this.cardPaymentProviders(),
+      // Ilova: "Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul" (§7).
+      freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
+      ...toDeliveryEta(settings),
+      // Posilka formasi, kutish taymeri va qaytarish haqi izohi (§2).
+      ...publicDeliveryIncidentSettings(toDeliveryIncidentSettings(settings)),
+      vendorSettlementMode: vendor.effectiveVendorSettlementMode,
+      vendorWalletSettlementFrom: vendor.vendorWalletSettlementFrom,
+      ...publicWalletTopupSettings(toWalletTopupSettings(settings)),
+      // Ilova "Shaharlararo" kafelini shunga qarab ko'rsatadi/yashiradi.
+      ...toIntercitySettings(settings),
+    };
+  }
+
+  /** Flat per-order delivery fee for the food/market verticals. */
+  async getDeliveryFee(): Promise<number> {
+    const { deliveryFee } = await this.getOrCreate();
+    return deliveryFee;
+  }
+
+  /**
+   * Yetkazish haqi va bepul yetkazish chegarasi — ovqat/market buyurtmasi
+   * yaratilganda `appliedDeliveryFee` bilan (`delivery-pricing.ts`).
+   */
+  async getDeliveryPricing(): Promise<DeliveryPricing> {
+    return toDeliveryPricing(await this.getOrCreate());
+  }
+
+  /** Naqd ovqat/market buyurtmasi chegarasi (so'm). */
+  async getMaxCashVendorOrder(): Promise<number> {
+    const { maxCashVendorOrder } = await this.getOrCreate();
+    return maxCashVendorOrder;
+  }
+
+  /** Safar opsiyalari haqi — faqat haqi > 0 bo'lgan opsiyalar. */
+  async getTripOptionFees(): Promise<TripOptionFees> {
+    const { tripOptionFees } = await this.getOrCreate();
+    return normalizeTripOptionFees(tripOptionFees);
+  }
+
+  /**
+   * Faqat yuborilgan opsiyalar o'zgaradi; `0` — o'sha opsiya haqi olib
+   * tashlanadi. Boshlangan safarlarga ta'sir qilmaydi: ularning haqi
+   * buyurtma quote'ida muzlatilgan.
+   */
+  async updateTripOptionFees(changes: TripOptionFees): Promise<TripOptionFees> {
+    const settings = await this.getOrCreate();
+    const merged = normalizeTripOptionFees({
+      ...normalizeTripOptionFees(settings.tripOptionFees),
+      ...changes,
+    });
+    await this.settingsRepository.update(settings.id, { tripOptionFees: merged });
+    return merged;
+  }
+
+  async getGlobalSettings(): Promise<GlobalSettings> {
+    return toGlobalSettings(await this.getOrCreate());
+  }
+
+  /**
+   * Faqat yuborilgan (va ruxsat etilgan) maydonlar o'zgaradi. Yetkazish
+   * vaqti joriy qiymat bilan birlashtirilgach tekshiriladi: faqat `min`
+   * yuborilsa ham u saqlangan `max` dan oshmasin.
+   */
+  async updateGlobalSettings(changes: GlobalSettingsChanges): Promise<GlobalSettings> {
+    const settings = await this.getOrCreate();
+    const update = Object.fromEntries(
+      GLOBAL_SETTINGS_FIELDS.filter((field) => changes[field] !== undefined).map((field) => [
+        field,
+        changes[field],
+      ]),
+    ) as Partial<PlatformSettings>;
+    const current = toDeliveryEta(settings);
+    assertDeliveryEtaRange(
+      update.deliveryEtaMinMinutes ?? current.deliveryEtaMinMinutes,
+      update.deliveryEtaMaxMinutes ?? current.deliveryEtaMaxMinutes,
+    );
+    const ladderError = strikeLadderError(
+      toIncidentSettings({ ...toIncidentSettings(settings), ...(update as Partial<IncidentSettings>) }),
+    );
+    if (ladderError) throw new BadRequestException(ladderError);
+    if (Object.keys(update).length > 0) {
+      await this.settingsRepository.update(settings.id, update);
+    }
+    return toGlobalSettings({ ...settings, ...update });
+  }
+}
+
+function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
+  return {
+    platformName: settings.platformName,
+    supportPhone: settings.supportPhone,
+    supportEmail: settings.supportEmail,
+    maintenanceMode: settings.maintenanceMode,
+    deliveryFee: settings.deliveryFee,
+    maxCashVendorOrder: settings.maxCashVendorOrder,
+    freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
+    ...toDeliveryEta(settings),
+    cardPaymentTimeoutMinutes: toCardPaymentTimeoutMinutes(settings),
+    ...toDeliveryIncidentSettings(settings),
+    ...toIncidentSettings(settings),
+    ...toSafetyPolicySettings(settings),
+  };
+}
+
+function publicDeliveryIncidentSettings(
+  settings: DeliveryIncidentSettings,
+): Pick<DeliveryIncidentSettings, 'parcelMaxDeclaredValue' | 'dropoffFreeWaitMinutes' | 'returnFeePercent'> {
+  return {
+    parcelMaxDeclaredValue: settings.parcelMaxDeclaredValue,
+    dropoffFreeWaitMinutes: settings.dropoffFreeWaitMinutes,
+    returnFeePercent: settings.returnFeePercent,
+  };
+}
+
+function toCardPaymentTimeoutMinutes(
+  settings: Partial<Pick<PlatformSettings, 'cardPaymentTimeoutMinutes'>>,
+): number {
+  return Number(settings.cardPaymentTimeoutMinutes ?? DEFAULT_CARD_PAYMENT_TIMEOUT_MINUTES);
+}
+
+function toDeliveryPricing(
+  settings: Partial<Pick<PlatformSettings, 'deliveryFee' | 'freeDeliveryFrom'>>,
+): DeliveryPricing {
+  return {
+    deliveryFee: Number(settings.deliveryFee),
+    freeDeliveryFrom: Number(settings.freeDeliveryFrom ?? DEFAULT_FREE_DELIVERY_FROM),
+  };
+}
+
+function toDeliveryEta(
+  settings: Partial<Pick<PlatformSettings, 'deliveryEtaMinMinutes' | 'deliveryEtaMaxMinutes'>>,
+): DeliveryEta {
+  return {
+    deliveryEtaMinMinutes: Number(settings.deliveryEtaMinMinutes ?? DEFAULT_DELIVERY_ETA_MIN_MINUTES),
+    deliveryEtaMaxMinutes: Number(settings.deliveryEtaMaxMinutes ?? DEFAULT_DELIVERY_ETA_MAX_MINUTES),
+  };
+}
+
+function parseOptionalDate(value: string | null, field: string): Date | null {
+  if (value === null) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${field}: noto'g'ri sana`);
+  }
+  return date;
+}
+
+function toCommissionSettings(
+  settings: Pick<PlatformSettings, 'defaultCommissionRate' | 'launchPromoCommissionUntil'>,
+): CommissionSettings {
+  const until = settings.launchPromoCommissionUntil ?? null;
+  return {
+    defaultCommissionRate: settings.defaultCommissionRate,
+    launchPromoCommissionUntil: until ? until.toISOString() : null,
+    launchPromoActive: isLaunchPromoActive(until, new Date()),
+  };
+}
+
+function toLegalComplianceSettings(settings: PlatformSettings): LegalComplianceSettings {
+  const enforcedFrom = settings.legalComplianceEnforcedFrom ?? null;
+  return {
+    legalComplianceEnforcedFrom: enforcedFrom ? enforcedFrom.toISOString() : null,
+    minDriverAgeYears: settings.minDriverAgeYears,
+    minLicenceExperienceYears: settings.minLicenceExperienceYears,
+    maxVehicleAgeYears: settings.maxVehicleAgeYears,
+    taxWithholdingEnabled: settings.taxWithholdingEnabled,
+    driverTaxWithholdingRate: settings.driverTaxWithholdingRate,
+    platformTin: settings.platformTin ?? null,
+  };
+}
+
+const DEFAULT_WALLET_TOPUP_PRESETS: readonly number[] = [50000, 100000, 200000];
+export const DEFAULT_WALLET_TOPUP_HOLD_DAYS = 7;
+export const DEFAULT_MANUAL_ADJUSTMENT_MANAGER_LIMIT = 2_000_000;
+
+/** Ilovaga — menejer chegarasi (ichki siyosat) chiqmaydi. */
+function publicWalletTopupSettings(
+  settings: WalletTopupSettings,
+): Omit<WalletTopupSettings, 'manualAdjustmentManagerLimit'> {
+  const { manualAdjustmentManagerLimit: _internal, ...visible } = settings;
+  return visible;
+}
+
+function toWalletTopupSettings(
+  settings: Partial<
+    Pick<
+      PlatformSettings,
+      | 'walletTopupEnabled'
+      | 'walletTopupMin'
+      | 'walletTopupMax'
+      | 'walletTopupPresets'
+      | 'walletTopupHoldDays'
+      | 'manualAdjustmentManagerLimit'
+    >
+  >,
+): WalletTopupSettings {
+  return {
+    walletTopupEnabled: settings.walletTopupEnabled === true,
+    walletTopupMin: Number(settings.walletTopupMin ?? 10000),
+    walletTopupMax: Number(settings.walletTopupMax ?? 2000000),
+    walletTopupPresets: (settings.walletTopupPresets ?? [...DEFAULT_WALLET_TOPUP_PRESETS]).map(Number),
+    walletTopupHoldDays: Number(settings.walletTopupHoldDays ?? DEFAULT_WALLET_TOPUP_HOLD_DAYS),
+    manualAdjustmentManagerLimit: Number(
+      settings.manualAdjustmentManagerLimit ?? DEFAULT_MANUAL_ADJUSTMENT_MANAGER_LIMIT,
+    ),
+  };
+}
+
+function toVendorSettlementSettings(
+  settings: Pick<PlatformSettings, 'vendorSettlementMode' | 'vendorWalletSettlementFrom'>,
+  now: Date,
+): VendorSettlementSettings {
+  const from = settings.vendorWalletSettlementFrom ?? null;
+  return {
+    vendorSettlementMode: settings.vendorSettlementMode === 'wallet' ? 'wallet' : 'cash',
+    vendorWalletSettlementFrom: from ? from.toISOString() : null,
+    effectiveVendorSettlementMode: effectiveVendorSettlementMode(settings.vendorSettlementMode, from, now),
+  };
+}
+
+/** Ustun qo'shilmagan eski qatorda (`undefined`) — migratsiya 036 standartlari. */
+const INTERCITY_DEFAULTS = {
+  freeCancelMinutes: 60,
+  maxSeatsPerBooking: 4,
+  minLeadMinutes: 30,
+  maxAheadDays: 7,
+  maxDetourMinutes: 15,
+} as const;
+
+function toIntercitySettings(settings: PlatformSettings): IntercitySettings {
+  return {
+    // `=== true`: ustun qo'shilmagan eski qator (`undefined`) ham o'chiq.
+    intercityEnabled: settings.intercityEnabled === true,
+    intercityFreeCancelMinutes:
+      settings.intercityFreeCancelMinutes ?? INTERCITY_DEFAULTS.freeCancelMinutes,
+    intercityMaxSeatsPerBooking:
+      settings.intercityMaxSeatsPerBooking ?? INTERCITY_DEFAULTS.maxSeatsPerBooking,
+    intercityMinLeadMinutes: settings.intercityMinLeadMinutes ?? INTERCITY_DEFAULTS.minLeadMinutes,
+    intercityMaxAheadDays: settings.intercityMaxAheadDays ?? INTERCITY_DEFAULTS.maxAheadDays,
+    intercityMaxDetourMinutes: settings.intercityMaxDetourMinutes ?? INTERCITY_DEFAULTS.maxDetourMinutes,
+  };
+}
+
+function toShiftPassSettings(settings: PlatformSettings): ShiftPassSettings {
+  return {
+    shiftPassEnabled: settings.shiftPassEnabled === true,
+    shiftPassPrice: settings.shiftPassPrice,
+    shiftPassDurationHours: settings.shiftPassDurationHours,
+    shiftPassServiceTypes: settings.shiftPassServiceTypes ?? ['taxi'],
+  };
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, ScrollText } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Download, RefreshCw, ShieldCheck, UserCog } from 'lucide-react';
 import { getDispatchOverrides, DispatchOverride } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -9,142 +10,297 @@ import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { formatDateTime, formatNumber, shortId } from '@/lib/format';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { Pagination } from '@/components/ui/Pagination';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { PageBody } from '@/components/ui/PageBody';
+import { RetryBanner } from '@/components/ui/RetryBanner';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+import { downloadCsv } from '@/lib/csv';
+import { formatDateTime, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
-const PAGE_LIMIT = 20;
+const PAGE_SIZES = [20, 50, 100] as const;
+
+type DatePreset = 'all' | 'today' | '7d' | '30d';
+
+function datePresets(): readonly { value: DatePreset; label: string }[] {
+  const p = t().control.auditLog.presets;
+  return [
+    { value: 'all', label: p.all },
+    { value: 'today', label: p.today },
+    { value: '7d', label: p.days7 },
+    { value: '30d', label: p.days30 },
+  ];
+}
+
+function presetCutoff(preset: DatePreset): number | null {
+  if (preset === 'all') return null;
+  const from = new Date();
+  if (preset === 'today') from.setHours(0, 0, 0, 0);
+  else from.setDate(from.getDate() - (preset === '7d' ? 7 : 30));
+  return from.getTime();
+}
+
+/**
+ * One override = one first-class audit record: who, when, which order, which
+ * driver, and — most prominently — WHY. The amber left edge is the panel's
+ * one visual claim that a human stepped in (control-room.md); it appears
+ * nowhere else on this page.
+ */
+function OverrideRecord({ override }: { override: DispatchOverride }) {
+  const ma = t().control.auditLog;
+  return (
+    <li className="relative border-l-2 border-l-override px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <Badge variant="override" size="sm">
+          <UserCog size={11} aria-hidden />
+          {ma.override}
+        </Badge>
+        <Link
+          href={`/orders/${override.orderId}`}
+          className="font-mono text-xs text-primary-text hover:underline"
+          aria-label={ma.orderAria(shortId(override.orderId))}
+        >
+          {shortId(override.orderId)}
+        </Link>
+        <span className="num text-xs text-subtle ml-auto whitespace-nowrap">
+          {formatDateTime(override.createdAt)}
+        </span>
+      </div>
+
+      {/* The reason is the record — it is why the audit log exists. */}
+      <p className="text-[13px] text-ink leading-relaxed break-words">{override.reason}</p>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted">
+        <span className="inline-flex items-center gap-1">
+          <span className="text-subtle">{ma.operatorLabel}</span>
+          <span className="font-mono">{shortId(override.performedByUserId)}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-subtle">{ma.driverLabel}</span>
+          <span className="font-mono">{shortId(override.previousDriverId)}</span>
+          <ArrowRight size={11} className="text-override" aria-hidden />
+          <span className="font-mono text-ink">{shortId(override.newDriverId)}</span>
+        </span>
+      </div>
+    </li>
+  );
+}
 
 export default function AuditLogPage() {
+  const m = t();
+  const ma = m.control.auditLog;
+  const { toast } = useToast();
+
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchOverrides = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getDispatchOverrides(page, PAGE_LIMIT);
+      const result = await getDispatchOverrides(page, pageSize);
       setOverrides(result.overrides);
       setTotal(result.total);
       setError(null);
     } catch (err) {
       console.error('Failed to load dispatch overrides:', err);
-      setError('Amallar tarixini yuklab boʻlmadi.');
+      setError(t().control.auditLog.loadFailed);
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
-  }, [page]);
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchOverrides();
   }, [fetchOverrides]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  // The endpoint takes page/limit only, so search and the date presets are
+  // applied to the loaded page — the labels below say so rather than implying
+  // the whole history was searched.
+  const filtered = useMemo(() => {
+    const cutoff = presetCutoff(datePreset);
+    const needle = search.trim().toLowerCase();
+    return overrides
+      .filter((o) => (cutoff == null ? true : new Date(o.createdAt).getTime() >= cutoff))
+      .filter((o) =>
+        needle === ''
+          ? true
+          : o.reason.toLowerCase().includes(needle) ||
+            o.orderId.toLowerCase().includes(needle) ||
+            o.newDriverId.toLowerCase().includes(needle) ||
+            (o.previousDriverId ?? '').toLowerCase().includes(needle)
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [overrides, search, datePreset]);
+
+  const hasFilters = Boolean(search || datePreset !== 'all');
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setDatePreset('all');
+  };
+
+  const handleExport = () => {
+    if (filtered.length === 0) return;
+    downloadCsv(
+      'amallar-tarixi',
+      ma.csvHeaders,
+      filtered.map((o) => [
+        formatDateTime(o.createdAt, { withYear: true }),
+        shortId(o.orderId),
+        o.performedByUserId,
+        o.previousDriverId ?? '',
+        o.newDriverId,
+        o.reason,
+      ])
+    );
+    toast({
+      title: ma.exported(filtered.length),
+      description: ma.exportedDescription,
+      variant: 'success',
+    });
+  };
+
+  const activeChips = useMemo(() => {
+    const chips: { key: string; label: string; onRemove: () => void }[] = [];
+    if (searchInput) {
+      chips.push({
+        key: 'q',
+        label: ma.searchChip(searchInput),
+        onRemove: () => setSearchInput(''),
+      });
+    }
+    if (datePreset !== 'all') {
+      chips.push({
+        key: 'date',
+        label: ma.dateChip(datePresets().find((p) => p.value === datePreset)?.label ?? ''),
+        onRemove: () => setDatePreset('all'),
+      });
+    }
+    return chips;
+  }, [searchInput, datePreset, ma]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4">
-        <PageHeader
-          title="Amallar tarixi"
-          description="Har bir qoʻlda aralashuv — kim qilgani va nima sababdan"
-          icon={<ScrollText size={17} />}
-          actions={
+    <PageBody className="max-w-5xl">
+      <PageHeader
+        title={ma.title}
+        description={ma.description}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              disabled={filtered.length === 0}
+              leftIcon={<Download size={13} aria-hidden />}
+              title={ma.exportTitle}
+            >
+              {ma.exportCsv}
+            </Button>
             <Button
               variant="secondary"
               size="sm"
               onClick={fetchOverrides}
-              leftIcon={<RefreshCw size={13} />}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
-          }
+          </>
+        }
+      />
+
+      <FilterBar
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder={ma.searchPlaceholder}
+        chips={activeChips}
+        onClearAll={clearFilters}
+        className="mb-3"
+        actions={<span className="text-xs text-subtle">{ma.filtersNote}</span>}
+      >
+        <SegmentedControl
+          items={datePresets()}
+          value={datePreset}
+          onChange={setDatePreset}
+          ariaLabel={ma.dateRangeAria}
         />
+      </FilterBar>
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchOverrides} />
-        ) : isLoading ? (
-          <SkeletonTable rows={6} cols={5} />
-        ) : overrides.length === 0 ? (
-          <Card>
+      {error && overrides.length > 0 && (
+        <RetryBanner message={error} onRetry={fetchOverrides} keepsLastData className="mb-3" />
+      )}
+
+      {error && overrides.length === 0 ? (
+        <Card padding="none">
+          <ErrorState
+            title={error}
+            message={ma.errorMessage}
+            onRetry={fetchOverrides}
+            retrying={isLoading}
+          />
+        </Card>
+      ) : isLoading && !hasLoadedOnce ? (
+        <SkeletonCards count={5} height="h-[96px]" />
+      ) : filtered.length === 0 ? (
+        <Card padding="none">
+          {hasFilters ? (
             <EmptyState
-              tone="positive"
-              icon={<ScrollText size={22} />}
-              title="Hali aralashuv boʻlmagan"
-              description="Barcha buyurtmalarga haydovchi avtomatik tayinlangan. Qoʻlda tayinlash yoki almashtirish boʻlsa, shu yerda sababi bilan koʻrinadi."
+              variant="no-results"
+              title={ma.noResultsTitle}
+              description={ma.noResultsDescription}
+              onClearFilters={clearFilters}
             />
-          </Card>
-        ) : (
-          <Card padding="none" className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Vaqt</th>
-                    <th className="px-4 py-3 font-semibold">Buyurtma</th>
-                    <th className="px-4 py-3 font-semibold">Oldingi haydovchi</th>
-                    <th className="px-4 py-3 font-semibold">Yangi haydovchi</th>
-                    <th className="px-4 py-3 font-semibold">Sabab</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {overrides.map((o) => (
-                    <tr key={o.id} className="hover:bg-surface-2/70 transition-colors">
-                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap font-mono">
-                        {formatDateTime(o.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted">
-                        {shortId(o.orderId)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-subtle">
-                        {o.previousDriverId ? `…${o.previousDriverId.slice(-6)}` : '—'}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink">
-                        …{o.newDriverId.slice(-6)}
-                      </td>
-                      <td className="px-4 py-3 max-w-[340px]">
-                        <div className="flex items-start gap-2">
-                          <Badge variant="override" size="sm" className="shrink-0">
-                            Aralashuv
-                          </Badge>
-                          <span className="text-xs text-ink break-words">{o.reason}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between px-4 py-3 text-xs text-muted border-t border-line">
-              <span>
-                Jami <span className="font-mono">{formatNumber(total)}</span> · {page} / {totalPages}{' '}
-                sahifa
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  leftIcon={<ChevronLeft size={13} />}
-                >
-                  Oldingi
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={page * PAGE_LIMIT >= total}
-                  onClick={() => setPage((p) => p + 1)}
-                  rightIcon={<ChevronRight size={13} />}
-                >
-                  Keyingi
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
-    </div>
+          ) : (
+            <EmptyState
+              variant="cleared"
+              icon={<ShieldCheck aria-hidden />}
+              title={ma.emptyTitle}
+              description={ma.emptyDescription}
+            />
+          )}
+        </Card>
+      ) : (
+        <Card padding="none">
+          <ul className="divide-y divide-line">
+            {filtered.map((o) => (
+              <OverrideRecord key={o.id} override={o} />
+            ))}
+          </ul>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={PAGE_SIZES}
+          />
+        </Card>
+      )}
+    </PageBody>
   );
 }

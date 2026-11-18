@@ -77,11 +77,13 @@ xato beradi va butun matching tizimi ishlamaydi. Shuning uchun **Docker image'da
    REDIS_PORT=${{Redis.REDISPORT}}
    REDIS_PASSWORD=${{Redis.REDISPASSWORD}}
 
-   # JWT (yangi generatsiya: openssl rand -hex 32)
-   APP_SECRET=ba64e371944d1cc78155b3a2220efce403a37e15837865bdb3f9fade9da014d5
+   # JWT — har bir server uchun YANGI generatsiya qiling, hech qayerga yozmang:
+   #   openssl rand -hex 32
+   APP_SECRET=<openssl rand -hex 32 natijasi>
 
-   # CORS — web panellar domenlari (vergul bilan emas, bittadan; '*' credentials bilan ishlamaydi)
-   CORS_ORIGIN=https://<web-admin-domeni>
+   # CORS — TO'RTALA web panel domeni, vergul bilan ajratilgan ('*' credentials bilan ishlamaydi).
+   # Bittasi tushib qolsa, o'sha panelda SMS kod yuborilmaydi (login ishlamaydi).
+   CORS_ORIGIN=https://<web-admin-domeni>,https://<web-manager-domeni>,https://<web-market-domeni>,https://<web-restaurant-domeni>
 
    # OTP — test uchun bypass (123456). Real prod'da false qiling!
    OTP_BYPASS_ENABLED=true
@@ -126,6 +128,59 @@ xato beradi va butun matching tizimi ishlamaydi. Shuning uchun **Docker image'da
 
 ---
 
+## 3a. OSRM — marshrut serveri
+
+Backend ETA bo'yicha haydovchi tanlash, qat'iy narx va mobil ilovadagi marshrut
+chizig'i uchun OSRM'dan foydalanadi. Ilova OSRM'ga to'g'ridan-to'g'ri bormaydi —
+`GET /api/v1/routing/route` orqali backend'dan oladi, ya'ni OSRM manzili faqat
+server sozlamasi.
+
+`osrm/Dockerfile` graf'ni **build paytida** o'zi quradi (Geofabrik'dan
+O'zbekiston extract'i, Toshkent viloyati chegarasi bilan kesilgan: Angren,
+Olmaliq, Chirchiq, Toshkent). Volume ham, qo'lda skript ham kerak emas.
+
+```bash
+cd osrm
+railway add --service osrm          # bir marta
+railway up . --path-as-root --service osrm --ci
+```
+
+- osrm servisiga `PORT=5000` o'zgaruvchisini bering (ichki tarmoq shu portda).
+- Build ~3–5 daqiqa, image ~340 MB, ishlashda ~120 MB RAM.
+- Backend'ga: `OSRM_URL=http://osrm.railway.internal:5000`
+- Xizmat hududi kengaysa (masalan, shaharlararo) — `osrm/Dockerfile` dagi
+  `ROUTE_BBOX` ni kengaytirib qayta deploy qiling.
+
+Tekshirish (Railway shell yoki lokal):
+`curl 'http://osrm.railway.internal:5000/route/v1/driving/70.14,41.02;69.28,41.31'`
+→ `"code":"Ok"`, Angren→Toshkent ~105 km.
+
+## 3b. Fayl saqlash (haydovchi hujjatlari)
+
+KYC hujjatlari va tekshiruv fotolari standart holda konteyner diskiga
+yoziladi — Railway'da **har deploy'da o'chadi**. Ikki yo'l bor:
+
+**A. S3-mos bucket (tavsiya).** Railway Bucket, Cloudflare R2, AWS S3 yoki
+MinIO — hammasi bir xil ishlaydi. Bucket **private** bo'lsin: fayllar faqat
+backend ruxsat tekshirgandan keyin oqim bilan beriladi.
+
+```
+STORAGE_DRIVER=s3
+S3_BUCKET=angren-kyc
+S3_REGION=auto
+S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com   # R2; AWS uchun bo'sh
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+```
+
+`STORAGE_DRIVER=s3` bo'lib, kalitlardan biri yetishmasa backend **ishga
+tushmaydi** — fayllar diskka jimgina yozilib, keyin yo'qolib ketmasligi uchun.
+
+**B. Railway Volume.** backend servisiga volume ulang, mount path:
+`/app/uploads`. `STORAGE_DRIVER=local` qoladi.
+
+---
+
 ## 4. Web-Admin (Next.js)
 
 1. **+ New** → **GitHub Repo** → o'sha repo.
@@ -163,11 +218,14 @@ NEXT_PUBLIC_SOCKET_URL=https://<backend-domen>
 ## 6. CORS'ni yakunlash
 
 Backend deploy bo'lib, web domenlar tayyor bo'lgach, backend `CORS_ORIGIN`ni
-aniq web domenga moslang (xavfsizroq):
+aniq web domenlarga moslang (xavfsizroq). **To'rtala panel** vergul bilan:
 
 ```
-CORS_ORIGIN=https://<web-admin-domeni>
+CORS_ORIGIN=https://<web-admin-domeni>,https://<web-manager-domeni>,https://<web-market-domeni>,https://<web-restaurant-domeni>
 ```
+
+Har bir panel login sahifasi `/auth/send-otp`ni brauzerdan to'g'ridan-to'g'ri
+backend'ga yuboradi — ro'yxatda yo'q panelda SMS kod yuborilmaydi.
 
 > Test bosqichida tez ishlashi uchun vaqtincha `CORS_ORIGIN=*` qoldirsa ham bo'ladi,
 > lekin `credentials: true` bilan brauzer `*`ni rad etadi — shuning uchun aniq domen tavsiya etiladi.
@@ -176,16 +234,38 @@ CORS_ORIGIN=https://<web-admin-domeni>
 
 ## 7. Mobil ilova (alohida build)
 
-Mobil Railway'da emas — telefon/emulyatorga build qilinadi. Backend domeniga yo'naltiring:
+Mobil Railway'da emas — telefon/emulyatorga build qilinadi. Backend domeniga yo'naltiring.
+
+Xarita kaliti (`MAPTILER_KEY`) repoda saqlanmaydi — `mobile/.env.dart-defines.json`
+faylida turadi (git'ga kirmaydi). Yo'q bo'lsa namunadan yarating:
+`cp mobile/dart-defines.example.json mobile/.env.dart-defines.json` va kalitni yozing.
+Kalitsiz build xatosiz o'tadi, lekin xarita bo'sh chiqadi.
+
+Tarqatish uchun skript: ikkala ilovani protsessor turi (ABI) bo'yicha bo'lib va
+obfuskatsiya qilib yig'adi — APK ~68 MB o'rniga 2–3 baravar kichik
+(telefonlarning aksariyati uchun `app-arm64-v8a-release.apk`):
 
 ```bash
+cd mobile
+API_BASE_URL=https://<backend-domen>/api/v1 WS_URL=https://<backend-domen> \
+  tool/build_release.sh
+```
+
+Xato steklarini o'qish uchun `build/symbols/<flavor>/` ni har reliz uchun saqlang.
+Qo'lda (bitta umumiy APK) yig'ish:
+
+```bash
+cd mobile
+
 # Yo'lovchi ilovasi
 flutter build apk --flavor passenger -t lib/main_passenger.dart \
+  --dart-define-from-file=.env.dart-defines.json \
   --dart-define=API_BASE_URL=https://<backend-domen>/api/v1 \
   --dart-define=WS_URL=https://<backend-domen>
 
 # Haydovchi ilovasi
 flutter build apk --flavor driver -t lib/main_driver.dart \
+  --dart-define-from-file=.env.dart-defines.json \
   --dart-define=API_BASE_URL=https://<backend-domen>/api/v1 \
   --dart-define=WS_URL=https://<backend-domen>
 ```
@@ -202,8 +282,10 @@ flutter build apk --flavor driver -t lib/main_driver.dart \
 - [ ] `/api/docs` ochiladi
 - [ ] web-admin: Root Dir `/web-admin`, `NEXT_PUBLIC_*` to'g'ri backend domeniga
 - [ ] web-manager: Root Dir `/web-manager`, env to'g'ri
-- [ ] backend `CORS_ORIGIN` web domenlarga moslangan
+- [ ] backend `CORS_ORIGIN` to'rtala web panel domeniga moslangan
 - [ ] OTP `123456` bilan login ishlaydi
+- [ ] osrm servisi deploy qilingan, backend'da `OSRM_URL` o'rnatilgan
+- [ ] `STORAGE_DRIVER=s3` + bucket kalitlari (yoki `/app/uploads` volume)
 
 ---
 

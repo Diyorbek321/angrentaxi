@@ -1,3 +1,5 @@
+import { t } from '@/locales';
+
 // The backend URL is resolved in exactly one place now — `lib/server/api-config.ts`,
 // server-side only. Re-exporting it here would put it back in the browser bundle
 // for no reason; both constants were already unused.
@@ -14,15 +16,9 @@ export const ORDER_STATUSES = {
 
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
 
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Kutilmoqda',
-  searching: 'Haydovchi qidirilmoqda',
-  accepted: 'Qabul qilindi',
-  arriving: 'Haydovchi yo\'lda',
-  in_progress: 'Bajarilmoqda',
-  completed: 'Yakunlandi',
-  cancelled: 'Bekor qilindi',
-};
+export function orderStatusLabels(): Record<OrderStatus, string> {
+  return t().shell.orderStatus;
+}
 
 /**
  * Angren Mint tokenlari (docs/DESIGN-TOKENS.md §3.3): tinted fon + `*-deep`
@@ -48,12 +44,9 @@ export const DRIVER_STATUSES = {
 
 export type DriverStatus = (typeof DRIVER_STATUSES)[keyof typeof DRIVER_STATUSES];
 
-export const DRIVER_STATUS_LABELS: Record<DriverStatus, string> = {
-  online: 'Onlayn',
-  offline: 'Oflayn',
-  blocked: 'Bloklangan',
-  pending: 'Ko\'rib chiqilmoqda',
-};
+export function driverStatusLabels(): Record<DriverStatus, string> {
+  return t().shell.driverStatus;
+}
 
 export const DRIVER_STATUS_COLORS: Record<DriverStatus, string> = {
   online: 'bg-mint-tint text-primary-text border border-mint/40',
@@ -70,11 +63,9 @@ export const USER_ROLES = {
 
 export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
 
-export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  admin: 'Admin',
-  passenger: 'Yo\'lovchi',
-  driver: 'Haydovchi',
-};
+export function userRoleLabels(): Record<UserRole, string> {
+  return t().shell.userRole;
+}
 
 export const PAYMENT_METHODS = {
   CASH: 'cash',
@@ -85,12 +76,9 @@ export const PAYMENT_METHODS = {
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[keyof typeof PAYMENT_METHODS];
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: 'Naqd',
-  card: 'Karta',
-  uzcard: 'UzCard',
-  humo: 'Humo',
-};
+export function paymentMethodLabels(): Record<PaymentMethod, string> {
+  return t().shell.paymentMethod;
+}
 
 export const DATE_RANGES = {
   LAST_7_DAYS: '7d',

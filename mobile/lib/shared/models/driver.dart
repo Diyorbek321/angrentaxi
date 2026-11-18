@@ -1,3 +1,4 @@
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:equatable/equatable.dart';
 
 class Driver extends Equatable {
@@ -19,6 +20,7 @@ class Driver extends Equatable {
     this.userStatus,
     this.carYear,
     this.approvedTariffTier = 1,
+    this.amenities = const [],
     String? userId,
   }) : userId = userId ?? id;
 
@@ -41,6 +43,9 @@ class Driver extends Equatable {
   // Highest Tariff.tier (1 = Start ... 5 = Biznes) this driver may be matched
   // against — set by a manager after reviewing the car, defaults to 1.
   final int approvedTariffTier;
+  // Safar opsiyalari: haydovchi taklif qila oladigan qo'shimchalar (bola
+  // o'rindig'i, hayvon, ...). Matching faqat shularga mos safarni yuboradi.
+  final List<TripOption> amenities;
   // From the nested `user` object on GET /drivers/me — 'pending' means this
   // driver applied but hasn't been approved by an admin/manager yet.
   final String? userStatus;
@@ -91,6 +96,7 @@ class Driver extends Equatable {
           : null,
       userStatus: user?['status'] as String?,
       carYear: json['carYear'] as int?,
+      amenities: TripOption.listFromApi(json['amenities']),
       approvedTariffTier: (json['approvedTariffTier'] as int?) ?? 1,
       userId: (json['userId'] as String?) ?? (user?['id'] as String?),
     );
@@ -135,6 +141,7 @@ class Driver extends Equatable {
     String? userStatus,
     int? carYear,
     int? approvedTariffTier,
+    List<TripOption>? amenities,
     String? userId,
   }) {
     return Driver(
@@ -155,6 +162,7 @@ class Driver extends Equatable {
       userStatus: userStatus ?? this.userStatus,
       carYear: carYear ?? this.carYear,
       approvedTariffTier: approvedTariffTier ?? this.approvedTariffTier,
+      amenities: amenities ?? this.amenities,
       userId: userId ?? this.userId,
     );
   }
@@ -181,5 +189,6 @@ class Driver extends Equatable {
         carYear,
         approvedTariffTier,
         userId,
+        amenities,
       ];
 }

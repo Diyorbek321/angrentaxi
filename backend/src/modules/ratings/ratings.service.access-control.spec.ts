@@ -33,7 +33,7 @@ describe('RatingsService - getOrderRatings access control', () => {
         passengerId: 'passenger-1',
         driverId: 'driver-user-1',
         status: OrderStatus.COMPLETED,
-      } as Order),
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({

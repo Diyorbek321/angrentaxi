@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -7,7 +8,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { SafetyService } from './safety.service';
+import { CallRelayResult, OrderCallsService } from './order-calls.service';
+import { RequestCallDto } from './dto/request-call.dto';
+import { OrderEvidence, OrderEvidenceService } from './order-evidence.service';
 import { ReportSosDto } from './dto/report-sos.dto';
+import { ResolveSosDto } from './dto/resolve-sos.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -22,7 +27,44 @@ import { SosAlert, SosReporterRole } from '../../database/entities/sos-alert.ent
 @ApiBearerAuth('JWT-auth')
 @Controller()
 export class SafetyController {
-  constructor(private readonly safetyService: SafetyService) {}
+  constructor(
+    private readonly safetyService: SafetyService,
+    private readonly orderCalls: OrderCallsService,
+    private readonly evidence: OrderEvidenceService,
+  ) {}
+
+  /**
+   * Ilova orqali qo'ng'iroq (INCIDENT-POLICY §4): qarshi tomon raqami faqat
+   * faol buyurtmada, faqat ishtirokchiga; har so'rov jurnalga.
+   */
+  @Post('orders/:orderId/call')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ long: { limit: 20, ttl: 60000 } })
+  @ApiOperation({ summary: "Participant: get the counterparty's phone for an active order (logged)" })
+  @ApiParam({ name: 'orderId', description: 'Order UUID' })
+  @ApiResponse({ status: 400, description: 'Order is not active' })
+  @ApiResponse({ status: 403, description: 'Caller is not a party to this order' })
+  async requestCall(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser() user: User,
+    @Body() dto: RequestCallDto,
+  ): Promise<CallRelayResult> {
+    return this.orderCalls.requestCall(orderId, user, dto?.target ?? 'counterparty');
+  }
+
+  /** Nizoli buyurtma dalillari — har ko'rish audit jurnaliga. */
+  @Get('manager/orders/:orderId/evidence')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Order evidence: GPS track, trip chat, SOS, ratings, calls, incidents (audited)' })
+  @ApiParam({ name: 'orderId', description: 'Order UUID' })
+  async getEvidence(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser() user: User,
+  ): Promise<OrderEvidence> {
+    return this.evidence.getEvidence(orderId, user.id);
+  }
 
   // Any authenticated passenger/driver may report; SafetyService.reportSos
   // is what actually verifies they belong to this specific order.
@@ -46,11 +88,16 @@ export class SafetyController {
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @RequirePermissions(Permission.DISPATCH)
-  @ApiOperation({ summary: 'Mark an SOS alert resolved (admin/manager only)' })
+  @ApiOperation({ summary: 'Mark an SOS alert resolved with a mandatory note (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'SOS alert UUID' })
   @ApiResponse({ status: 200, description: 'Alert marked resolved' })
-  async resolveSos(@Param('id', ParseUUIDPipe) id: string): Promise<SosAlert> {
-    return this.safetyService.resolveSos(id);
+  @ApiResponse({ status: 409, description: 'Already resolved' })
+  async resolveSos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto: ResolveSosDto,
+  ): Promise<SosAlert> {
+    return this.safetyService.resolveSos(id, user.id, dto.note);
   }
 
   @Get('sos/active')

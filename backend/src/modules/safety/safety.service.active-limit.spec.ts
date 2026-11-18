@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuditLogService } from '../audit/audit-log.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SosAlert, SosAlertStatus } from '../../database/entities/sos-alert.entity';
 import { OrdersService } from '../orders/orders.service';
@@ -25,6 +26,7 @@ describe('SafetyService.listActive — row cap', () => {
         { provide: getRepositoryToken(SosAlert), useValue: { find } },
         { provide: OrdersService, useValue: {} },
         { provide: RealtimeGateway, useValue: { emitToManagers: jest.fn() } },
+        { provide: AuditLogService, useValue: { record: jest.fn() } },
       ],
     }).compile();
 

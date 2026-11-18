@@ -1,7 +1,40 @@
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+/// Yuk og'irligi chegarasi, kg (backend `details.weightKg` 1..20000).
+const int kCargoMaxWeightKg = 20000;
+
+/// Yuk ortuvchilar soni chegarasi (backend `details.loaders` 0..10).
+const int kCargoMaxLoaders = 10;
+
+/// Ixtiyoriy butun son maydoni: bo'sh — `null`, chegaradan tashqari yoki
+/// yaroqsiz — [kCargoInvalidInput]. Server noto'g'ri qiymatni 400 bilan rad etadi,
+/// shuning uchun ilova uni oldindan to'xtatadi.
+const int kCargoInvalidInput = -1;
+int? parseOptionalInt(String raw, {required int min, required int max}) {
+  final text = raw.trim();
+  if (text.isEmpty) return null;
+  final value = int.tryParse(text);
+  if (value == null || value < min || value > max) return kCargoInvalidInput;
+  return value;
+}
+
+/// Buyurtmaga ketadigan cargo `details` (bo'sh maydonlar yuborilmaydi).
+Map<String, dynamic> buildCargoDetails({
+  required String vehicle,
+  int? weightKg,
+  int? loaders,
+}) =>
+    {
+      'vehicle': vehicle,
+      if (weightKg != null) 'weightKg': weightKg,
+      if (loaders != null) 'loaders': loaders,
+    };
 
 class CargoScreen extends StatefulWidget {
   const CargoScreen({super.key});
@@ -12,16 +45,48 @@ class CargoScreen extends StatefulWidget {
 
 class _CargoScreenState extends State<CargoScreen> {
   int _selected = 0;
+  final _formKey = GlobalKey<FormState>();
+  final _weight = TextEditingController();
+  final _loaders = TextEditingController();
 
+  @override
+  void dispose() {
+    _weight.dispose();
+    _loaders.dispose();
+    super.dispose();
+  }
+
+  // $2 is the wire value sent as `cargoDetails.vehicle` — never localize it.
+  // What the user sees comes from [_typeLabels].
   static const _types = [
-    (Icons.sports_motorsports_rounded, 'Kuryer', '5 kg gacha'),
-    (Icons.airport_shuttle_rounded, 'Yengil', '300 kg gacha'),
-    (Icons.local_shipping_rounded, 'Yuk', '1 t gacha'),
+    (Icons.sports_motorsports_rounded, 'Kuryer'),
+    (Icons.airport_shuttle_rounded, 'Yengil'),
+    (Icons.local_shipping_rounded, 'Yuk'),
   ];
 
+  /// Display title and capacity caption for `_types[i]`.
+  static (String, String) _typeLabels(BuildContext context, int i) {
+    final l10n = context.l10n;
+    return switch (i) {
+      0 => (l10n.saCargoCourier, l10n.saCargoUpTo5kg),
+      1 => (l10n.saCargoLight, l10n.saCargoUpTo300kg),
+      _ => (l10n.saCargoTruck, l10n.saCargoUpTo1t),
+    };
+  }
+
   void _callCourier() {
-    // Cargo is backend-supported — hand off to the shared booking flow.
-    context.read<OrderProvider>().setServiceType('cargo');
+    // Cargo is backend-supported — hand off to the shared booking flow, which
+    // owns address selection and the real distance-based quote. The selected
+    // vehicle type travels with the order instead of being thrown away.
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    context.read<OrderProvider>().setServiceType(
+          'cargo',
+          details: buildCargoDetails(
+            vehicle: _types[_selected].$2,
+            weightKg: parseOptionalInt(_weight.text, min: 1, max: kCargoMaxWeightKg),
+            loaders: parseOptionalInt(_loaders.text, min: 0, max: kCargoMaxLoaders),
+          ),
+        );
     Navigator.of(context).pushNamed('/passenger/home');
   }
 
@@ -32,34 +97,21 @@ class _CargoScreenState extends State<CargoScreen> {
       body: Column(
         children: [
           AgHeader(
-            title: 'Cargo · Yuk yetkazish',
-            subtitle: 'Shahar ichida tez yetkazib berish',
+            title: context.l10n.saCargoTitle,
+            subtitle: context.l10n.saCargoSubtitle,
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(
-            child: ListView(
+            child: Form(
+              key: _formKey,
+              child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: kSpace4),
-                  decoration: BoxDecoration(
-                    color: agSurface,
-                    borderRadius: BorderRadius.circular(kRadiusLg),
-                    boxShadow: agCardShadow,
-                  ),
-                  child: Column(
-                    children: [
-                      _routeRow(kMintDeep, true, 'QAYERDAN', 'Markaz, Amir Temur 24'),
-                      const Divider(color: agDivider, height: 1, indent: 23),
-                      _routeRow(agRed, false, 'QAYERGA', 'Yangi shahar, 7-mavze'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: kSpace5),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2),
-                  child: Text('Transport turi',
-                      style: TextStyle(
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(context.l10n.saCargoVehicleType,
+                      style: const TextStyle(
                           fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
                 ),
                 const SizedBox(height: kSpace3),
@@ -76,8 +128,8 @@ class _CargoScreenState extends State<CargoScreen> {
                             behavior: HitTestBehavior.opaque,
                             child: _TypeCard(
                               icon: _types[i].$1,
-                              title: _types[i].$2,
-                              sub: _types[i].$3,
+                              title: _typeLabels(context, i).$1,
+                              sub: _typeLabels(context, i).$2,
                               active: _selected == i,
                             ),
                           ),
@@ -87,103 +139,80 @@ class _CargoScreenState extends State<CargoScreen> {
                   ],
                 ),
                 const SizedBox(height: kSpace4),
+                // Ixtiyoriy: og'irlik va yuk ortuvchilar — haydovchi
+                // taklifda ko'radi (INCIDENT-POLICY §2, cargo details).
+                AppTextField(
+                  key: const ValueKey('cargo_weight'),
+                  controller: _weight,
+                  label: context.l10n.saCargoWeight,
+                  hint: context.l10n.saCargoWeightRange,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  prefixIcon: const Icon(Icons.scale_rounded),
+                  validator: (v) =>
+                      parseOptionalInt(v ?? '', min: 1, max: kCargoMaxWeightKg) == kCargoInvalidInput
+                          ? context.l10n.saCargoWeightRange
+                          : null,
+                ),
+                const SizedBox(height: kSpace3),
+                AppTextField(
+                  key: const ValueKey('cargo_loaders'),
+                  controller: _loaders,
+                  label: context.l10n.saCargoLoaders,
+                  hint: context.l10n.saCargoLoadersRange,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  prefixIcon: const Icon(Icons.groups_rounded),
+                  validator: (v) =>
+                      parseOptionalInt(v ?? '', min: 0, max: kCargoMaxLoaders) == kCargoInvalidInput
+                          ? context.l10n.saCargoLoadersRange
+                          : null,
+                ),
+                const SizedBox(height: kSpace4),
                 Container(
-                  padding: const EdgeInsets.all(kSpace5),
+                  padding: const EdgeInsets.all(kSpace4),
                   decoration: BoxDecoration(
-                    color: agInk,
+                    color: agSurface,
                     borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: agCardShadow,
                   ),
-                  child: Stack(
-                    clipBehavior: Clip.hardEdge,
+                  child: Row(
                     children: [
-                      Positioned(
-                        right: -10,
-                        bottom: -20,
-                        child: ExcludeSemantics(
-                          child: Icon(Icons.local_shipping_rounded,
-                              size: 96, color: agBright.withValues(alpha: 0.18)),
-                        ),
+                      const ExcludeSemantics(
+                        child: Icon(Icons.info_outline_rounded,
+                            size: 22, color: agSubtle),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Taxminiy narx · 8.4 km',
-                              style: TextStyle(
-                                  color: agOnPrimary.withValues(alpha: 0.7),
-                                  fontSize: kFontCaption,
-                                  fontWeight: FontWeight.w700)),
-                          const SizedBox(height: kSpace1),
-                          const Text("35 000 so'm",
-                              style: TextStyle(
-                                  color: agOnPrimary,
-                                  fontSize: kFontDisplay,
-                                  fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 2),
-                          Text('Yetkazish ~ 40 daqiqa',
-                              style: TextStyle(
-                                  color: agOnPrimary.withValues(alpha: 0.7),
-                                  fontSize: kFontCaption,
-                                  fontWeight: FontWeight.w600)),
-                        ],
+                      const SizedBox(width: kSpace3),
+                      Expanded(
+                        child: Text(
+                          context.l10n.saCargoAddressHint,
+                          style: const TextStyle(
+                            fontSize: kFontCaption,
+                            color: agSubtle,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+            ),
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(
                 kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace4),
-            child: AgPrimaryButton(label: 'Kuryer chaqirish', onPressed: _callCourier),
+            child: AgPrimaryButton(label: context.l10n.saCargoCallCourier, onPressed: _callCourier),
           ),
         ],
       ),
     );
   }
 
-  Widget _routeRow(Color dot, bool circle, String label, String value) {
-    return SizedBox(
-      height: 52,
-      child: Row(
-        children: [
-          ExcludeSemantics(
-            child: Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                color: dot,
-                shape: circle ? BoxShape.circle : BoxShape.rectangle,
-                borderRadius: circle ? null : BorderRadius.circular(3),
-                boxShadow: circle
-                    ? [
-                        BoxShadow(
-                          color: dot.withValues(alpha: 0.16),
-                          blurRadius: 0,
-                          spreadRadius: 4,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-          const SizedBox(width: kSpace3),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: kFontMicro, color: agSubtle, fontWeight: FontWeight.w700)),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: kFontBody, color: agText, fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _TypeCard extends StatelessWidget {

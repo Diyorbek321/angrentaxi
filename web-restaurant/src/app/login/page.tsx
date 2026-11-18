@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,25 +12,34 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/components/ui/Toast';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
+import { formatPhone as displayPhone } from '@/lib/format';
 import { errorMessage } from '@/hooks/useAsyncData';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
+import { LanguageToggle } from '@/components/ui';
+import { t, type Messages } from '@/locales';
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(9, 'Telefon raqamini kiriting')
-    .refine((v) => isValidUzPhone(v), "Noto'g'ri telefon raqam (+998XXXXXXXXX)"),
-});
+// Sxemalar funksiya ichida: xato matnlari faol tilda (modul darajasida qotib qolmasin).
+function makePhoneSchema(m: Messages['login']) {
+  return z.object({
+    phone: z
+      .string()
+      .min(9, m.phoneRequired)
+      .refine((v) => isValidUzPhone(v), m.phoneInvalid),
+  });
+}
 
-const otpSchema = z.object({
-  code: z.string().length(6, '6 raqamli kod kiriting').regex(/^\d+$/, 'Faqat raqamlar'),
-});
+function makeOtpSchema(m: Messages['login']) {
+  return z.object({
+    code: z.string().length(6, m.codeLength).regex(/^\d+$/, m.digitsOnly),
+  });
+}
 
-type PhoneForm = z.infer<typeof phoneSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
+type PhoneForm = z.infer<ReturnType<typeof makePhoneSchema>>;
+type OtpForm = z.infer<ReturnType<typeof makeOtpSchema>>;
 
 export default function LoginPage() {
+  const m = t().login;
   const router = useRouter();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -50,6 +59,8 @@ export default function LoginPage() {
     setNextPath(sanitizeNextPath(param));
   }, []);
 
+  const phoneSchema = useMemo(() => makePhoneSchema(m), [m]);
+  const otpSchema = useMemo(() => makeOtpSchema(m), [m]);
   const phoneForm = useForm<PhoneForm>({ resolver: zodResolver(phoneSchema), defaultValues: { phone: '' } });
   const otpForm = useForm<OtpForm>({ resolver: zodResolver(otpSchema), defaultValues: { code: '' } });
 
@@ -66,12 +77,12 @@ export default function LoginPage() {
         otpForm.setValue('code', code);
       }
       toast({
-        title: 'Kod yuborildi',
-        description: code ? `[DEV] Kod: ${code}` : `${normalized} raqamiga SMS kod yuborildi`,
+        title: m.codeSent,
+        description: code ? m.devCode(code) : m.smsSent(normalized),
         variant: 'success',
       });
     } catch (err: unknown) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -84,114 +95,89 @@ export default function LoginPage() {
       // rol tekshiruvi ham o'sha yerda. Bu yerga faqat profil qaytadi.
       const user = await authApi.verifyOtp(phone, data.code);
       login(user);
-      toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
+      toast({ title: m.success, variant: 'success' });
       router.push(nextPath);
     } catch (err: unknown) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-bg flex items-center justify-center p-4 overflow-hidden">
-      {/* Dekorativ mint halo — ma'no tashimaydi, shuning uchun mint bo'lishi mumkin. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-mint/20 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-primary/15 blur-3xl"
-      />
-
-      <div className="absolute top-4 right-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-bg p-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
-      <div className="relative w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          {/* Interaktiv emas, lekin brend belgisi — gradient-mint ustida ink matn. */}
-          <div className="flex h-16 w-16 items-center justify-center rounded-ds-md bg-gradient-mint shadow-card">
-            <UtensilsCrossed className="h-8 w-8 text-ink" aria-hidden />
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-ds-sm bg-primary text-white dark:bg-primary-on-dark dark:text-ink">
+            <UtensilsCrossed size={20} aria-hidden />
           </div>
-          <div>
-            <h1 className="text-h1 text-ink">Angren Taxi</h1>
-            <p className="text-body font-semibold text-primary-text">Restoran paneli</p>
-          </div>
+          <h1 className="text-h1 text-ink">Angren Taxi</h1>
+          <p className="mt-0.5 text-[13px] text-muted">{m.panelName}</p>
         </div>
 
-        <div className="surface-card p-6 sm:p-8">
-          {/* Bosqich indikatori: rangdan tashqari matn bilan ham beriladi. */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2" aria-hidden>
-              <span className="h-1.5 flex-1 rounded-full bg-primary" />
-              <span
-                className={`h-1.5 flex-1 rounded-full transition-colors duration-fast ${
-                  step === 'otp' ? 'bg-primary' : 'bg-surface-3'
-                }`}
-              />
-            </div>
-            <p className="mt-2 text-caption font-semibold text-muted">
-              {step === 'phone' ? '1-bosqich / 2' : '2-bosqich / 2'}
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <h2 className="text-h2 text-ink">
-              {step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}
-            </h2>
-            <p className="mt-1.5 text-body text-muted">
+        <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
+          <div className="mb-5">
+            <p className="text-xs text-subtle">{step === 'phone' ? m.stepPhone : m.stepOtp}</p>
+            <h2 className="mt-1 text-h3 text-ink">{step === 'phone' ? m.titlePhone : m.titleOtp}</h2>
+            <p className="mt-1 text-[13px] text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting'
-                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
+                ? m.descPhone
+                : m.descOtp(displayPhone(phone))}
             </p>
           </div>
 
           {step === 'phone' ? (
             <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="flex flex-col gap-4" noValidate>
               <Input
-                label="Telefon raqam"
+                label={m.phoneLabel}
                 placeholder="+998901234567"
                 autoComplete="tel"
                 inputMode="tel"
-                mono
-                leftElement={<Phone className="h-4 w-4" />}
+                className="num"
+                leftElement={<Phone size={15} />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
-              <Button type="submit" size="lg" fullWidth isLoading={isLoading} rightIcon={<ArrowRight className="h-4 w-4" />}>
-                Kod yuborish
+              <Button type="submit" size="lg" fullWidth isLoading={isLoading} rightIcon={<ArrowRight size={15} />}>
+                {m.sendCode}
               </Button>
             </form>
           ) : (
             <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="flex flex-col gap-4" noValidate>
               <Input
-                label="Tasdiqlash kodi"
+                label={m.codeLabel}
                 placeholder="000000"
                 maxLength={6}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 mono
-                leftElement={<Lock className="h-4 w-4" />}
+                leftElement={<Lock size={15} />}
                 error={otpForm.formState.errors.code?.message}
                 {...otpForm.register('code')}
               />
               {devOtpCode && (
-                <p className="rounded-ds-sm border border-info/40 bg-info-tint px-3.5 py-2.5 text-caption text-info-deep dark:text-info-light">
-                  <span className="font-bold">DEV:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span> (avtomatik kiritildi)
+                <p className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
+                  <span className="font-semibold">TEST:</span> {m.testOtpBefore}{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span>
+                  {m.testOtpAfter}
                 </p>
               )}
-              <Button type="submit" size="lg" fullWidth isLoading={isLoading} rightIcon={<ArrowRight className="h-4 w-4" />}>
-                Kirish
+              <Button type="submit" size="lg" fullWidth isLoading={isLoading} rightIcon={<ArrowRight size={15} />}>
+                {m.submit}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setStep('phone')}>
-                Raqamni o&apos;zgartirish
+              <Button type="button" variant="ghost" fullWidth onClick={() => setStep('phone')}>
+                {m.changePhone}
               </Button>
             </form>
           )}
         </div>
+
+        <p className="mt-6 text-center text-xs text-subtle">{m.footer}</p>
       </div>
     </div>
   );

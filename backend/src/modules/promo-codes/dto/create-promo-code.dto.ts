@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsDateString,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -9,6 +12,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { ServiceType } from '../../../database/entities/order.entity';
 
 export class CreatePromoCodeDto {
   @ApiProperty({ example: 'SUMMER20', description: 'Promo code (will be uppercased)' })
@@ -68,4 +72,18 @@ export class CreatePromoCodeDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @ApiProperty({
+    enum: ServiceType,
+    isArray: true,
+    example: ['food', 'market'],
+    description: "Qaysi xizmatlarda ishlaydi. Bo'sh yoki berilmasa — hammasida (null).",
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsEnum(ServiceType, { each: true })
+  serviceTypes?: ServiceType[] | null;
 }

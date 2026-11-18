@@ -2,13 +2,26 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Logger,
+  Optional,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { OrderContactMaskingInterceptor } from '../safety/contact-masking.interceptor';
+import {
+  CANCEL_FEE_FEATURE,
+  CLIENT_FEATURES_HEADER,
+  PARCEL_DECLARATION_FEATURE,
+  clientHasFeature,
+} from '../safety/contact-policy';
+import { InterruptedTrip, OrdersInterruptionService } from './orders-interruption.service';
+import { InterruptTripDto } from './dto/interrupt-trip.dto';
+import type { CancelFeeQuote } from './taxi-cancel-policy';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -20,6 +33,7 @@ import {
 import { OrdersService, DriverEarningsBreakdown } from './orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CompleteTripDto } from './dto/complete-trip.dto';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
@@ -32,13 +46,30 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { Permission, User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { Order } from '../../database/entities/order.entity';
+import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { AddTipDto } from './dto/add-tip.dto';
+import { OrdersMeterService, type MeterReading } from './orders-meter.service';
+import { OrderReceiptDto } from './dto/order-receipt.dto';
+import { FraudReviewDto } from './dto/fraud-review.dto';
+import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
+import { parseDeviceId } from './fraud-rules';
+import { VendorCashService, VendorPaidResult } from '../delivery/vendor-cash.service';
+import { OrderIdempotencyService } from './order-idempotency.service';
+import { OrdersReturnService } from './orders-return.service';
+import { StuckDelivery } from './stuck-deliveries';
+import {
+  DeliveryFailedDto,
+  ManagerConfirmReturnedDto,
+  ManagerDeliveryFailedDto,
+} from './dto/delivery-incident.dto';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+// Qarshi tomon telefoni yashiriladi (INCIDENT-POLICY §4, `safety/contact-policy.ts`).
+@UseInterceptors(OrderContactMaskingInterceptor)
 @Controller('orders')
 export class OrdersController {
   private readonly logger = new Logger(OrdersController.name);
@@ -46,7 +77,24 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
+    private readonly meterService: OrdersMeterService,
+    // Optional: controller spec'lari uni qurmaydi; prod'da OrdersModule beradi.
+    @Optional() private readonly fraudService?: OrderFraudService,
+    @Optional() private readonly vendorCash?: VendorCashService,
+    @Optional() private readonly idempotency?: OrderIdempotencyService,
+    @Optional() private readonly returns?: OrdersReturnService,
+    @Optional() private readonly interruption?: OrdersInterruptionService,
   ) {}
+
+  private requireInterruption(): OrdersInterruptionService {
+    if (!this.interruption) throw new Error('OrdersInterruptionService is not wired');
+    return this.interruption;
+  }
+
+  private requireReturns(): OrdersReturnService {
+    if (!this.returns) throw new Error('OrdersReturnService is not wired');
+    return this.returns;
+  }
 
   @Post('calculate-price')
   @ApiOperation({ summary: 'Calculate estimated trip price' })
@@ -56,21 +104,64 @@ export class OrdersController {
   }
 
   @Post()
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: 'Create a new order' })
   @ApiResponse({ status: 201, description: 'Order created' })
   async createOrder(
     @CurrentUser() user: User,
     @Body() dto: CreateOrderDto,
+    @Headers('x-device-id') deviceId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers(CLIENT_FEATURES_HEADER) features?: string,
   ): Promise<Order> {
-    const order = await this.ordersService.create(user.id, dto);
+    const create = () =>
+      this.ordersService.create(user.id, dto, {
+        requireParcelDeclaration: clientHasFeature(features, PARCEL_DECLARATION_FEATURE),
+      });
+    const { order, replayed } = this.idempotency
+      ? await this.idempotency.run(user.id, idempotencyKey, create, (id) =>
+          this.ordersService.findByIdForUser(id, user),
+        )
+      : { order: await create(), replayed: false };
+    // Takror so'rov: buyurtma va uning qidiruvi allaqachon bor.
+    if (replayed) return order;
+
+    // Antifrod yozuvi xatosi qidiruvni to'xtatmasin: ilgari bu yerda
+    // yiqilish buyurtmani CREATED da qoldirar, yo'lovchi 4 daqiqa (reaper)
+    // hech narsasiz kutardi.
+    try {
+      await this.fraudService?.recordPassengerDevice(order.id, parseDeviceId(deviceId));
+    } catch (err) {
+      this.logger.warn(`Passenger device record for order ${order.id} failed: ${(err as Error).message}`);
+    }
+
+    this.startSearchUnlessScheduled(order);
+
+    return order;
+  }
+
+  /**
+   * Rejalashtirilgan buyurtmada qidiruv HOZIR boshlanmaydi.
+   *
+   * Uni `ScheduledOrdersService` cron'i `scheduled_at` dan
+   * SCHEDULED_DISPATCH_LEAD_MINUTES oldin ishga tushiradi. Bu yerda
+   * `startSearch` chaqirilsa, ertangi safar uchun haydovchi BUGUN
+   * qidirilardi va 3 daqiqadan keyin "haydovchi topilmadi" deb bekor
+   * bo'lardi.
+   */
+  private startSearchUnlessScheduled(order: Order): void {
+    if (order.status === OrderStatus.SCHEDULED) {
+      this.logger.log(
+        `Order ${order.id} is scheduled for ${order.scheduledAt?.toISOString() ?? '?'} — ` +
+          'matching deferred to ScheduledOrdersService',
+      );
+      return;
+    }
 
     // Start matching asynchronously
     this.matchingService.startSearch(order.id).catch((err: unknown) => {
       this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
     });
-
-    return order;
   }
 
   @Post('dispatch')
@@ -81,9 +172,7 @@ export class OrdersController {
   async createDispatchOrder(@Body() dto: CreateDispatchOrderDto): Promise<Order> {
     const order = await this.ordersService.createForDispatch(dto);
 
-    this.matchingService.startSearch(order.id).catch((err: unknown) => {
-      this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
-    });
+    this.startSearchUnlessScheduled(order);
 
     return order;
   }
@@ -147,6 +236,36 @@ export class OrdersController {
     return this.ordersService.getActiveOrders();
   }
 
+  /**
+   * ⚠️ MARSHRUT TARTIBI: bu handler `@Get(':id')` DAN OLDIN turishi SHART.
+   *
+   * Nest marshrutlarni e'lon tartibida ro'yxatdan o'tkazadi. Pastroqqa
+   * qo'yilsa `GET /orders/scheduled` `findOne('scheduled')` ga tushadi va
+   * `ParseUUIDPipe` "Validation failed (uuid is expected)" bilan 400
+   * qaytaradi — endpoint umuman ishlamaydi, lekin xato xabari boshqa
+   * narsani ko'rsatadi.
+   */
+  @Get('scheduled')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: "Yo'lovchining kelgusi rejalashtirilgan safarlari" })
+  @ApiResponse({ status: 200, description: 'Rejalashtirilgan safarlar ro\'yxati' })
+  async getScheduled(@CurrentUser() user: User): Promise<Order[]> {
+    return this.ordersService.getScheduledOrders(user.id);
+  }
+
+  /**
+   * Haydovchiga hozir ko'rsatilayotgan taklif (yo'q bo'lsa `null`). Taklif
+   * socket orqali keladi; uzilish paytidagi hodisa yo'qoladi — ilova qayta
+   * ulanganda / fondan qaytganda shu bilan tiklaydi.
+   * ⚠️ `@Get(':id')` DAN OLDIN turishi shart.
+   */
+  @Get('offer/current')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Haydovchining joriy buyurtma taklifi (socket qayta ulanganda tiklash uchun)' })
+  async getCurrentOffer(@CurrentUser() user: User): Promise<Record<string, unknown> | null> {
+    return this.matchingService.currentOfferFor(user.id);
+  }
+
   @Get('earnings')
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: "Get the current driver's earnings for today" })
@@ -187,6 +306,37 @@ export class OrdersController {
     return this.ordersService.getNoDriversFoundExceptions(pagination.page ?? 1, pagination.limit ?? 20);
   }
 
+  /** ⚠️ `@Get(':id')` DAN OLDIN. "Osilib qolgan" yetkazishlar (INCIDENT-POLICY §2). */
+  @Get('exceptions/stuck-deliveries')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Osilib qolgan yetkazishlar: IN_PROGRESS uzoq yoki kuryer joylashuvi eski" })
+  async getStuckDeliveries(): Promise<StuckDelivery[]> {
+    return this.requireReturns().listStuckDeliveries();
+  }
+
+  /** ⚠️ `@Get(':id')` DAN OLDIN turishi shart (yuqoridagi izohga qarang). */
+  @Get('fraud-review')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
+  @ApiOperation({ summary: "Shubhali safarlar (o'zini o'zi zakaz qilish belgilari) — menejer navbati" })
+  async getFraudReviewQueue(): Promise<FraudReviewEntry[]> {
+    return this.fraudService?.listPending() ?? [];
+  }
+
+  @Patch(':id/fraud-review')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
+  @ApiOperation({ summary: 'Shubhali safar bo‘yicha qaror: tasdiqlansa bonus beriladi' })
+  async reviewFraud(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FraudReviewDto,
+  ): Promise<{ ok: true }> {
+    await this.fraudService?.review(id, user.id, dto.approved, dto.note);
+    return { ok: true };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
@@ -202,6 +352,52 @@ export class OrdersController {
     return this.ordersService.findByIdForUser(id, user);
   }
 
+  @Get(':id/receipt')
+  @ApiOperation({ summary: 'Tugagan safar cheki' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Chek', type: OrderReceiptDto })
+  @ApiResponse({ status: 400, description: 'Safar hali tugamagan' })
+  @ApiResponse({ status: 403, description: 'Bu chek sizga tegishli emas' })
+  async getReceipt(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<OrderReceiptDto> {
+    // Rol guard yo'q — huquq `findByIdForUser` ichida tekshiriladi
+    // (yo'lovchi / tayinlangan haydovchi / manager).
+    return this.ordersService.getReceipt(id, user);
+  }
+
+  @Get(':id/meter')
+  @ApiOperation({ summary: 'Taksometr: joriy masofa, vaqt va summa (safar davomida)' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 400, description: 'Taksometrli emas yoki safar davom etmayapti' })
+  @ApiResponse({ status: 403, description: 'Bu buyurtma sizga tegishli emas' })
+  async getMeter(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<MeterReading> {
+    // Rol guard yo'q — huquq `findByIdForUser` ichida (chek bilan bir xil).
+    return this.meterService.reading(id, user);
+  }
+
+  @Post(':id/tip')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: "Haydovchiga chaqim (komissiyasiz, hamyondan)" })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 201, description: 'Chaqim berildi' })
+  @ApiResponse({
+    status: 400,
+    description: "Safar tugamagan, 24 soat o'tgan yoki hamyonda mablag' yetarli emas",
+  })
+  @ApiResponse({ status: 409, description: 'Chaqim allaqachon berilgan' })
+  async addTip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddTipDto,
+  ): Promise<{ tipAmount: number; walletBalance: number }> {
+    return this.ordersService.addTip(user.id, id, dto);
+  }
+
   @Patch(':id/accept')
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: 'Driver accepts an order' })
@@ -210,10 +406,42 @@ export class OrdersController {
   async acceptOrder(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-device-id') deviceId?: string,
   ): Promise<Order> {
     const order = await this.ordersService.acceptOrder(user.id, id);
-    await this.matchingService.driverAccepted(user.id, id);
+    // ⚠️ Safar allaqachon haydovchiniki. Antifrod yozuvi yoki navbatni
+    // tozalash xatosi haydovchiga 500 qaytarmasin — u "qabul bo'lmadi" deb
+    // safarni tashlab ketardi. Ikkalasi alohida: biri yiqilsa ikkinchisi
+    // baribir bajariladi (navbat tozalanmasa keyingi haydovchi taklifi
+    // ekranida qolib ketardi).
+    try {
+      await this.fraudService?.recordDriverAccept(id, user.id, parseDeviceId(deviceId));
+    } catch (err) {
+      this.logger.warn(`Accept fraud record for order ${id} failed: ${(err as Error).message}`);
+    }
+    try {
+      await this.matchingService.driverAccepted(user.id, id);
+    } catch (err) {
+      this.logger.error(`Matching cleanup after accept of ${id} failed: ${(err as Error).message}`);
+    }
     return order;
+  }
+
+  /**
+   * Kuryer: "do'konga tovar pulini to'ladim" (naqd ovqat/market). Busiz
+   * safarni boshlab bo'lmaydi — `VendorCashService.assertReadyForPickup`.
+   * Hamyon rejimida (`method: 'wallet'`) shu chaqiruv kuryer hamyonidan
+   * sotuvchi hisobiga o'tkazma qiladi; sotuvchi tasdig'i kerak emas.
+   */
+  @Patch(':id/vendor-paid')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Kuryer do'konga tovar pulini to'ladi (naqd) yoki hamyondan o'tkazdi" })
+  async markVendorPaid(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<VendorPaidResult> {
+    if (!this.vendorCash) return { amount: 0, method: 'cash' };
+    return this.vendorCash.markPaidByCourier(user.id, id);
   }
 
   @Patch(':id/decline')
@@ -262,8 +490,73 @@ export class OrdersController {
   async completeTrip(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteTripDto,
   ): Promise<Order> {
-    return this.ordersService.completeTrip(user.id, id);
+    return this.ordersService.completeTrip(user.id, id, dto.deliveryPin);
+  }
+
+  // ─── Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2) ──────────────
+
+  @Patch(':id/dropoff-arrived')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Kuryer topshirish manziliga yetib keldi (manzilda kutish boshlanadi)' })
+  async dropoffArrived(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.requireReturns().markDropoffArrived(user.id, id);
+  }
+
+  @Patch(':id/delivery-failed')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Kuryer: yetkazib bo'lmadi (bepul kutishdan keyin) — qaytarish yo'li" })
+  async deliveryFailed(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeliveryFailedDto,
+  ): Promise<Order> {
+    return this.requireReturns().markDeliveryFailed({ userId: user.id, byManager: false }, id, dto.reason);
+  }
+
+  @Patch(':id/confirm-returned')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Posilka yuboruvchisi: posilka qaytib keldi' })
+  async senderConfirmReturned(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.requireReturns().confirmReturned(id, { kind: 'sender', userId: user.id });
+  }
+
+  @Patch(':id/manager/delivery-failed')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Dispetcher: yetkazib bo'lmadi → qaytarish (izoh majburiy, audit)" })
+  async managerDeliveryFailed(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManagerDeliveryFailedDto,
+  ): Promise<Order> {
+    return this.requireReturns().markDeliveryFailed({ userId: user.id, byManager: true, note: dto.note }, id, dto.reason);
+  }
+
+  @Patch(':id/manager/confirm-returned')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Dispetcher: tovar qaytib keldi (izoh majburiy, audit)' })
+  async managerConfirmReturned(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManagerConfirmReturnedDto,
+  ): Promise<Order> {
+    return this.requireReturns().confirmReturned(id, { kind: 'manager', userId: user.id, note: dto.note });
+  }
+
+  // The dispatcher panel's "Yakunlash" used to call the driver-only route
+  // above and always got 403. Separate route: a dispatcher completes for the
+  // assigned driver (and, for a parcel, after speaking to the recipient).
+  @Patch(':id/force-complete')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Dispatcher completes a ride on the driver's behalf (manager/admin)" })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Trip completed' })
+  async forceComplete(@Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.ordersService.completeByDispatcher(id);
   }
 
   @Patch(':id/reassign')
@@ -295,7 +588,56 @@ export class OrdersController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelOrderDto,
+    @Headers(CLIENT_FEATURES_HEADER) features?: string,
   ): Promise<Order> {
-    return this.ordersService.cancelOrder(user.id, user.role, id, dto.reason);
+    // Eski APK jarimani ko'rsatmaydi — unga jarima qo'llanmaydi (§5).
+    return this.ordersService.cancelOrder(user.id, user.role, id, dto.reason, {
+      expectedFee: dto.expectedFee,
+      legacyClient: !clientHasFeature(features, CANCEL_FEE_FEATURE),
+    });
+  }
+
+  /** Yo'lovchi: hozir bekor qilsam qancha (INCIDENT-POLICY §5) — tasdiqlashdan OLDIN. */
+  @Get(':id/cancel-fee')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Passenger: the late-cancel fee that would apply right now' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async getCancelFee(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<CancelFeeQuote> {
+    return this.ordersService.quoteCancelFee(user.id, user.role, id);
+  }
+
+  /** Haydovchi: "Yo'lovchi chiqmadi" — server vaqti bo'yicha kutish tekshiriladi (§5). */
+  @Patch(':id/no-show')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Driver: passenger did not show up (after the wait); fee goes to the driver' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async markNoShow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.ordersService.markNoShow(user.id, id);
+  }
+
+  /** Haydovchi: safar uzildi (avariya/buzilish) — shu nuqtagacha narx (§5). */
+  @Patch(':id/interrupt')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Driver: trip interrupted (accident/breakdown) — fare up to this point' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async interruptTrip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InterruptTripDto,
+  ): Promise<InterruptedTrip> {
+    return this.requireInterruption().interrupt(id, user, dto);
+  }
+
+  @Patch(':id/manager/interrupt')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Dispatcher: mark an in-progress trip interrupted' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async managerInterruptTrip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InterruptTripDto,
+  ): Promise<InterruptedTrip> {
+    return this.requireInterruption().interrupt(id, user, dto);
   }
 }

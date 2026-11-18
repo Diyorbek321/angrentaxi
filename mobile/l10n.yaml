@@ -1,0 +1,13 @@
+# Ilova matnlari: o'zbekcha (asosiy, shablon) va ruscha.
+#
+# ARB fayllarini QO'LDA TAHRIRLAMANG — ular lib/l10n/parts/*.json dan
+# tool/l10n_merge.py bilan yig'iladi:
+#   python3 tool/l10n_merge.py && flutter gen-l10n
+arb-dir: lib/l10n
+template-arb-file: app_uz.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n/gen
+synthetic-package: false
+nullable-getter: true
+untranslated-messages-file: build/l10n_untranslated.json

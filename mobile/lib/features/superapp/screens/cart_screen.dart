@@ -2,10 +2,39 @@ import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_info.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+// ============================================================================
+// SAVAT — QATLAMLI YUZA + YARASHISH INVARIANTI.
+//
+// 1. QATLAM. Ekran foni `kSurface2`, ichidagi bloklar `AgSurfaceCard`
+//    (oq, chegarasiz). Ilgari fon `agBg` edi va kartalar soya bilan
+//    ajratilardi — super-app tilida ajratish SOYA emas, YUZA orqali
+//    beriladi, aks holda savat ekrani yo'lovchi va haydovchi ekranlaridan
+//    boshqa tilda gapiradi.
+//
+// 2. YARASHISH. Narx qatorlari BITTA ro'yxatdan chiziladi va o'sha
+//    ro'yxatning yig'indisi "Jami" bilan solishtiriladi (`assert`).
+//    Sabab: checkout'da paydo bo'ladigan kutilmagan haq — savat
+//    tashlashning birinchi sababi. Kelajakda xizmat haqi qo'shilsa, u
+//    `_priceLines` ga qo'shiladi va SHU ONDA ham ko'rinadi, ham
+//    yig'indiga kiradi — ikkinchi joyda "unutib qoldirish" imkoni yo'q.
+//
+// ⚠️ HISOB O'ZGARMADI. `cartSubtotal` / `deliveryFee` / `cartTotal` —
+// hammasi `SuperappProvider` dagi o'sha getterlar. Bu yerda faqat
+// KO'RINISH va invariant tekshiruvi.
+// ============================================================================
+
+/// Ekran fonidan uzilib turadigan yuza — savat ichidagi barcha bloklar
+/// shu ikkilikda (`kSurface2` fon + oq karta) yashaydi.
+const Color _kScreenSurface = kSurface2;
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key, this.embedded = false});
@@ -18,11 +47,11 @@ class CartScreen extends StatelessWidget {
     final provider = context.watch<SuperappProvider>();
 
     return Scaffold(
-      backgroundColor: agBg,
+      backgroundColor: _kScreenSurface,
       body: Column(
         children: [
           AgHeader(
-            title: 'Savat',
+            title: context.l10n.saCart,
             onBack: embedded ? null : () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -43,15 +72,24 @@ class _EmptyCart extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppEmptyState(
       icon: Icons.shopping_bag_outlined,
-      title: "Savat bo'sh",
-      message: "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
-      actionLabel: "Bosh sahifaga o'tish",
+      title: context.l10n.saCartEmptyTitle,
+      message: context.l10n.saCartEmptyMessage,
+      actionLabel: context.l10n.saGoToHome,
       onAction: () {
         final provider = context.read<SuperappProvider>();
         if (provider.tabIndex != 0) provider.tabIndex = 0;
       },
     );
   }
+}
+
+/// Hisobning bitta tashkil etuvchisi. Ro'yxat sifatida saqlanadi, chunki
+/// KO'RSATISH va QO'SHISH bitta manbadan bo'lishi shart.
+@immutable
+class _PriceLine {
+  const _PriceLine(this.label, this.amount);
+  final String label;
+  final double amount;
 }
 
 class _CartBody extends StatelessWidget {
@@ -61,18 +99,31 @@ class _CartBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Yo'lovchi ko'radigan HAR BIR haq shu ro'yxatda. Yashirin qator yo'q.
+    final lines = <_PriceLine>[
+      _PriceLine(context.l10n.saMarketProducts, provider.cartSubtotal),
+      _PriceLine(context.l10n.saDelivery, provider.deliveryFee),
+    ];
+    final linesSum = lines.fold<double>(0, (sum, l) => sum + l.amount);
+    final total = provider.cartTotal;
+
+    // ⚠️ YARASHISH INVARIANTI. Faqat debug rejimida ishlaydi (relizda
+    // olib tashlanadi), lekin ishlab chiqish paytida yangi haq qo'shib,
+    // uni qatorlar ro'yxatiga kiritishni unutgan odamni SHU YERDA
+    // to'xtatadi — yo'lovchi checkout'da hayron bo'lgunicha emas.
+    assert(
+      (linesSum - total).abs() < 0.01,
+      "Savat yarashmadi: qatorlar yig'indisi $linesSum, jami $total. "
+      "Yangi haq qo'shilgan bo'lsa, u `lines` ro'yxatiga ham kirishi shart.",
+    );
+
     return Stack(
       children: [
         ListView(
           padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 180),
           children: [
-            Container(
+            AgSurfaceCard(
               padding: const EdgeInsets.symmetric(horizontal: kSpace4),
-              decoration: BoxDecoration(
-                color: agSurface,
-                borderRadius: BorderRadius.circular(kRadiusLg),
-                boxShadow: agCardShadow,
-              ),
               child: Column(
                 children: [
                   for (var i = 0; i < provider.cart.length; i++)
@@ -86,34 +137,55 @@ class _CartBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: kSpace4),
-            Container(
-              padding: const EdgeInsets.all(kSpace4),
-              decoration: BoxDecoration(
-                color: agSurface,
-                borderRadius: BorderRadius.circular(kRadiusLg),
-                boxShadow: agCardShadow,
-              ),
+            if (provider.freeDeliveryFrom != null) ...[
+              const FreeDeliveryProgress(),
+              const SizedBox(height: kSpace4),
+            ],
+            AgSurfaceCard(
               child: Column(
                 children: [
-                  _SummaryRow('Mahsulotlar', Formatters.formatSom(provider.cartSubtotal)),
-                  const SizedBox(height: kSpace3),
-                  _SummaryRow('Yetkazib berish', Formatters.formatSom(provider.deliveryFee)),
+                  for (var i = 0; i < lines.length; i++) ...[
+                    if (i > 0) const SizedBox(height: kSpace3),
+                    _SummaryRow(
+                      lines[i].label,
+                      // Bepul yetkazish — "0 so'm" emas, aniq so'z.
+                      i == 1 && provider.isFreeDelivery
+                          ? context.l10n.saDeliveryFree
+                          : Formatters.formatSom(lines[i].amount),
+                    ),
+                  ],
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: kSpace3),
                     child: _DashedDivider(),
                   ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Jami',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
-                      Text(Formatters.formatSom(provider.cartTotal),
+                      Expanded(
+                        child: Text(context.l10n.saTotal,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                      ),
+                      Text(Formatters.formatSom(total),
                           style: const TextStyle(
                               fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                     ],
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: kSpace3),
+            // Ishonch qatori: yuqoridagi uchta raqam — yakuniy raqamlar.
+            // Yetkazib berish haqi AYNAN shu yerda aytilgani uchun
+            // checkout'da yangi raqam chiqmasligini ochiq yozamiz.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kSpace2),
+              child: Text(
+                context.l10n.saCartNoExtraFees,
+                style: const TextStyle(
+                  fontSize: kFontCaption,
+                  color: kInkMuted,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -123,7 +195,12 @@ class _CartBody extends StatelessWidget {
           right: kSpace4,
           bottom: (embedded ? 92 : MediaQuery.of(context).padding.bottom + kSpace4),
           child: AgPrimaryButton(
-            label: 'Rasmiylashtirish · ${Formatters.formatSom(provider.cartTotal)}',
+            // Summa CTA da TAKRORLANADI — bu bosishdan oldingi oxirgi
+            // tasdiq. Yo'lovchi qancha to'lashini tugmadan uzoqlashmasdan
+            // ko'radi.
+            label: context.l10n.saCheckoutWithTotal(Formatters.formatSom(total)),
+            semanticsLabel:
+                context.l10n.saCheckoutWithTotalLabel(Formatters.formatSom(total)),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const CheckoutScreen()),
             ),
@@ -151,14 +228,19 @@ class _CartRow extends StatelessWidget {
       child: Row(
         children: [
           ExcludeSemantics(
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: item.color,
-                borderRadius: BorderRadius.circular(kRadiusSm),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(kRadiusSm),
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: CatalogImage(
+                  imageUrl: item.imageUrl,
+                  placeholder: Container(
+                    color: item.color,
+                    child: Icon(item.icon, size: 26, color: agOnPrimary.withValues(alpha: 0.95)),
+                  ),
+                ),
               ),
-              child: Icon(item.icon, size: 26, color: agOnPrimary.withValues(alpha: 0.95)),
             ),
           ),
           const SizedBox(width: kSpace3),
@@ -172,24 +254,47 @@ class _CartRow extends StatelessWidget {
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
                 const SizedBox(height: kSpace1),
-                Text(Formatters.formatSom(item.lineTotal),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: kFontLabel, color: agGreenText)),
+                // Qator darajasidagi yarashish: dona narxi × miqdor ko'rinib
+                // turadi, shuning uchun qator jami "qayerdandir" kelgan
+                // raqam emas. Kichik yozuv `kInkMuted` (5.47:1) —
+                // `kInkSubtle` yozuvda ishlatilmaydi.
+                Text(
+                  '${Formatters.formatSom(item.price)} × ${item.qty}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: kFontCaption,
+                      color: kInkMuted),
+                ),
+                // Qator jami nom ostida — ilgari alohida ustunda turardi va
+                // 360dp + katta shriftda miqdor tugmalarini ekrandan itarardi.
+                Text(
+                  Formatters.formatSom(item.lineTotal),
+                  maxLines: 1,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText),
+                ),
               ],
             ),
           ),
+          const SizedBox(width: kSpace2),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: kSpace1),
             decoration: BoxDecoration(
-              color: agBg,
+              color: _kScreenSurface,
               borderRadius: BorderRadius.circular(kRadiusSm),
+              // Boshqaruv elementi — WCAG 1.4.11 bo'yicha chegara 3:1 dan
+              // past bo'lmasligi kerak, shuning uchun `kLineInteractive`.
+              border: Border.all(color: kLineInteractive),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _QtyButton(
                   icon: Icons.remove_rounded,
                   color: agText,
-                  semanticsLabel: 'Miqdorni kamaytirish',
+                  semanticsLabel: context.l10n.saQtyDecrease,
                   onTap: onDec,
                 ),
                 Text('${item.qty}',
@@ -198,7 +303,7 @@ class _CartRow extends StatelessWidget {
                 _QtyButton(
                   icon: Icons.add_rounded,
                   color: agGreenText,
-                  semanticsLabel: 'Miqdorni oshirish',
+                  semanticsLabel: context.l10n.saQtyIncrease,
                   onTap: onInc,
                 ),
               ],
@@ -254,11 +359,13 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Text(label,
+              style: const TextStyle(
+                  fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(width: kSpace2),
         Text(value,
             style: const TextStyle(
                 fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),

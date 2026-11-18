@@ -1,8 +1,16 @@
+import { OrdersInterruptionService } from './orders-interruption.service';
+import { IncidentSignalsModule } from '../incidents/incident-signals.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TaximeterModule } from '../taximeter/taximeter.module';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
+import { OrdersMeterService } from './orders-meter.service';
+import { OrderFraudService } from './order-fraud.service';
+import { OrderIdempotencyService } from './order-idempotency.service';
+import { OrdersReturnService } from './orders-return.service';
+import { ScheduledOrdersService } from './scheduled-orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -15,7 +23,13 @@ import { DriversModule } from '../drivers/drivers.module';
 import { MatchingModule } from '../matching/matching.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { DriverBonusesModule } from '../driver-bonuses/driver-bonuses.module';
+import { SurgeModule } from '../surge/surge.module';
+import { CitiesModule } from '../cities/cities.module';
+import { RoutingModule } from '../routing/routing.module';
 import { SettingsModule } from '../settings/settings.module';
+import { FiscalModule } from '../fiscal/fiscal.module';
+import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -29,11 +43,51 @@ import { SettingsModule } from '../settings/settings.module';
     PromoCodesModule,
     DriverBonusesModule,
     SettingsModule,
+    SurgeModule,
+    RoutingModule,
+    TaximeterModule,
+    // `OrdersCreationService` olib ketish nuqtasini shaharga bog'laydi
+    // (`resolveCityIdForPickup`). Modul eng quyi qatlamda — hech qanday
+    // feature modulini olmaydi — shuning uchun aylanma bog'liqlik yo'q.
+    CitiesModule,
+    // Yakunlangan safar uchun fiskal chek yozuvi. Eng quyi qatlam — orders'ni
+    // import qilmaydi, aylanma bog'liqlik yo'q.
+    FiscalModule,
+    // Smena: faol smena komissiyani 0 qiladi; daromad ekrani smena narxini
+    // ko'rsatadi. Modul orders'ni import qilmaydi — aylanma bog'liqlik yo'q.
+    ShiftPassesModule,
+    // Haydovchi bekor qilish signali va uzilgan safar hodisasi (§5). Kichik
+    // modul — faqat incidents jadvali + sozlamalar, aylanma bog'liqlik yo'q.
+    IncidentSignalsModule,
+    // Safar yakunida saqlangan kartadan yechish (`CardAutoChargeService`).
+    // PaymentsModule OrdersModule'ni import qilmaydi — aylanma bog'liqlik yo'q.
+    // ⚠️ Kelajakda PaymentsModule'ga OrdersModule qo'shilsa — sikl paydo bo'ladi.
+    PaymentsModule,
   ],
   controllers: [OrdersController],
-  providers: ORDERS_PROVIDERS,
+  // ⚠️ `ScheduledOrdersService` ATAYLAB `ORDERS_PROVIDERS` dan TASHQARIDA.
+  // U massiv 13 ta spec faylida ham ishlatiladi va faqat shu servis
+  // `MatchingService` ga bog'liq — uni umumiy ro'yxatga qo'shish har bir
+  // spec faylga tegishsiz mock qo'shishni talab qilardi. Fasad
+  // (`OrdersService`) unga bog'lanmaydi: o'qish `OrdersQueryService` da,
+  // bekor qilish esa mavjud `cancelOrder` orqali ishlaydi.
+  // `OrdersMeterService` ham tashqarida: u `TaximeterService` ni talab qiladi,
+  // `ORDERS_PROVIDERS` dan modul yig'adigan o'nlab unit spec'lar esa uni
+  // bermaydi (taksometr ular sinayotgan oqimlarga aloqasi yo'q).
+  providers: [
+    ...ORDERS_PROVIDERS,
+    ScheduledOrdersService,
+    OrdersMeterService,
+    OrderFraudService,
+    OrderIdempotencyService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2) — ovqat/market sotuvchi
+    // tasdig'i uchun eksport qilinadi.
+    OrdersReturnService,
+    // Taksi: safar uzildi (INCIDENT-POLICY §5) — controller'ga ixtiyoriy.
+    OrdersInterruptionService,
+  ],
   // Only the facade is exported — other modules must keep depending on
   // OrdersService, not on the internal collaborator services.
-  exports: [OrdersService],
+  exports: [OrdersService, OrdersReturnService],
 })
 export class OrdersModule {}

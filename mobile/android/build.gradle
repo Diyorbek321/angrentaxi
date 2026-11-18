@@ -26,12 +26,51 @@ gradle.beforeProject { p ->
     }
 }
 
-rootProject.buildDir = layout.buildDirectory.dir("../build").get().asFile
+// ⚠️ `rootProject.file(...)` — `layout.buildDirectory.dir(...)` EMAS.
+//
+// `layout.buildDirectory` allaqachon `android/build` ni bildiradi, ya'ni
+// undan `../build` olish yana o'sha `android/build` ni beradi — ya'ni bu
+// qator hech narsa qilmasdi. Flutter asboblari esa APK'ni loyiha ildizidagi
+// `mobile/build/app/outputs/flutter-apk/` dan qidiradi va topa olmay
+// "Gradle build failed to produce an .apk file" deb tugatardi. Build o'zi
+// muvaffaqiyatli o'tib, natija boshqa papkada qolib ketardi.
+//
+// `rootProject.file()` yo'lni loyiha PAPKASIGA (`android/`) nisbatan
+// hisoblaydi, ya'ni `mobile/build` — Flutter kutgan joy.
+rootProject.buildDir = rootProject.file("../build")
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 subprojects {
     project.evaluationDependsOn(':app')
+}
+
+// MapLibre plagini androidx.core 1.16.0 ni tortadi, u esa AGP 8.6+ talab
+// qiladi — loyihada 8.3.0. AGP'ni ko'tarish butun qurilma zanjirini
+// (Gradle, Kotlin, google-services) qo'zg'atadi, shuning uchun kerakli
+// minimal yechim: androidx.core ni AGP 8.3 qo'llaydigan oxirgi versiyaga
+// qadab qo'yamiz. MapLibre unda yo'q API ishlatmaydi.
+subprojects {
+    configurations.configureEach {
+        resolutionStrategy {
+            force "androidx.core:core:1.13.1"
+            force "androidx.core:core-ktx:1.13.1"
+        }
+    }
+}
+
+// sentry_flutter 8.x o'z build.gradle'ida `languageVersion = "1.6"` qo'yadi,
+// Kotlin 2.x esa 1.6 ni qabul qilmaydi ("Language version 1.6 is no longer
+// supported"). 9.x ga o'tish firebase_* 2.x/14.x bilan to'qnashadi (web ^1.1),
+// shuning uchun faqat shu plaginning Kotlin tilini 1.8 ga ko'taramiz —
+// uning kodi 1.8 da o'zgarishsiz kompilyatsiya bo'ladi.
+subprojects { p ->
+    if (p.name == "sentry_flutter") {
+        p.tasks.matching { it.name.startsWith("compile") && it.name.endsWith("Kotlin") }.configureEach { t ->
+            t.kotlinOptions.languageVersion = "1.8"
+            t.kotlinOptions.apiVersion = "1.8"
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

@@ -1,0 +1,542 @@
+{
+  "shServiceIntercityShort": "Shaharlararo",
+  "icTileTitle": "Shaharlararo",
+  "icTileSubtitle": "Toshkent, Olmaliq, Ohangaron — joy yoki butun mashina",
+  "icSearchTitle": "Shaharlararo",
+  "icFrom": "Qayerdan",
+  "icTo": "Qayerga",
+  "icSwap": "Yo'nalishni almashtirish",
+  "icToday": "Bugun",
+  "icTomorrow": "Ertaga",
+  "icNoRoutes": "Hozircha yo'nalishlar yo'q",
+  "icNoTripsTitle": "Bu kunga qatnov yo'q",
+  "icNoTripsHint": "Boshqa kunni tanlab ko'ring",
+  "icLoadError": "Ma'lumot yuklanmadi",
+  "icRetry": "Qayta urinish",
+  "icClassStart": "Start",
+  "icClassComfort": "Comfort",
+  "icSeatsLeft": "{count} ta joy bo'sh",
+  "@icSeatsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icNoSeatsLeft": "Joy qolmagan",
+  "icSeatPrice": "1 joy — {price}",
+  "@icSeatPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icWholeCarPrice": "Butun mashina — {price}",
+  "@icWholeCarPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icWholeCarUnavailable": "Butun mashina: joylar allaqachon band",
+  "icDriverUnknown": "Haydovchi",
+  "icBookTitle": "Joy band qilish",
+  "icKindSeat": "Joy",
+  "icKindWholeCar": "Butun mashina",
+  "icSeatsCount": "Joylar soni",
+  "icSeatsDecrease": "Joyni kamaytirish",
+  "icSeatsIncrease": "Joyni ko'paytirish",
+  "icPickup": "Olib ketish manzili",
+  "icInsideArea": "{place} ichida",
+  "@icInsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icDropoff": "Tushish joyi",
+  "icDropoffFixed": "{place} — qat'iy to'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.",
+  "@icDropoffFixed": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icChooseOnMap": "Xaritadan tanlang",
+  "icOutsideArea": "Manzil {place} hududidan tashqarida",
+  "@icOutsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icTotal": "Jami",
+  "icPaymentCash": "To'lov: naqd, haydovchiga",
+  "icConfirm": "Band qilish",
+  "icBooked": "Joy band qilindi",
+  "icErrSeatsUnavailable": "Afsus, bu joylar band bo'lib qoldi. Ma'lumot yangilandi.",
+  "icErrAlreadyBooked": "Siz bu qatnovda allaqachon joy band qilgansiz",
+  "icErrDisabled": "Shaharlararo xizmati hozircha o'chirilgan",
+  "icErrNotCancellable": "Bu bandni endi bekor qilib bo'lmaydi",
+  "icErrGeneric": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring",
+  "icMyBookings": "Mening bandlarim",
+  "icNoBookings": "Hali band qilingan qatnov yo'q",
+  "icStatusScheduled": "Band qilingan",
+  "icStatusAccepted": "Haydovchi yig'ishni boshladi",
+  "icStatusArrived": "Haydovchi keldi",
+  "icStatusInProgress": "Yo'lda",
+  "icStatusCompleted": "Yakunlandi",
+  "icStatusCancelled": "Bekor qilingan",
+  "icDepartsIn": "Jo'nashga {time} qoldi",
+  "@icDepartsIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icDurationHm": "{hours} soat {minutes} daq",
+  "@icDurationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDurationM": "{minutes} daq",
+  "@icDurationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDeparture": "Jo'nash",
+  "icSeatsBooked": "{count} joy",
+  "@icSeatsBooked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icDriverPhoneHidden": "Haydovchi raqami jo'nashdan 1 soat oldin ochiladi",
+  "icCallDriver": "Haydovchiga qo'ng'iroq",
+  "icCancelBooking": "Bandni bekor qilish",
+  "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
+  "@icFreeCancelUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icLateCancelWarning": "Bepul bekor qilish muddati o'tgan. Bekor qilish qayd etiladi — ko'p takrorlansa band qilish cheklanishi mumkin.",
+  "icCancelConfirmTitle": "Bandni bekor qilasizmi?",
+  "icCancelConfirmYes": "Ha, bekor qilish",
+  "icCancelConfirmNo": "Yo'q",
+  "icCancelled": "Band bekor qilindi",
+  "icTripCancelled": "Qatnov bekor qilindi",
+  "icErrServiceNotEnabled": "Avval \"Xizmat turlari\" bo'limida Shaharlararo xizmatini yoqing",
+  "icErrTripOverlap": "Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor",
+  "icErrTripNotCancellable": "Yo'lga chiqqan qatnovni bekor qilib bo'lmaydi",
+  "icErrTripActionNotAllowed": "Bu amal qatnovning hozirgi holatida mumkin emas",
+  "icErrDriverBusy": "Avval faol shahar safarini yakunlang",
+  "icTripOpen": "Ochiq",
+  "icTripFull": "To'la",
+  "icTripBoarding": "Yig'ilmoqda",
+  "icTripInProgress": "Yo'lda",
+  "icTripCompleted": "Yakunlangan",
+  "icTripCancelledStatus": "Bekor qilingan",
+  "icDrvEntryTitle": "Shaharlararo qatnovlarim",
+  "icDrvEntrySubtitle": "Qatnov e'lon qiling — yo'lovchilar o'zi yoziladi",
+  "icDrvNextTrip": "Keyingi qatnov",
+  "icDrvInFlight": "Qatnovingizda yo'lovchilar kutmoqda",
+  "icDrvSeatsTaken": "{taken}/{total} joy band",
+  "@icDrvSeatsTaken": {
+    "placeholders": {
+      "taken": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvWholeCarBooked": "Butun mashina band",
+  "icDrvPublishTitle": "Qatnov e'lon qilish",
+  "icDrvRoute": "Yo'nalish",
+  "icDrvDeparture": "Jo'nash vaqti",
+  "icDrvPickDeparture": "Sana va vaqtni tanlang",
+  "icDrvSeats": "Joylar soni",
+  "icDrvClass": "Klass",
+  "icDrvComfortUnavailable": "Bu yo'nalishda Comfort narxi yo'q",
+  "icDrvPrice": "Narx (yo'lovchi to'laydi)",
+  "icDrvPublish": "E'lon qilish",
+  "icDrvPublished": "Qatnov e'lon qilindi",
+  "icDrvTooSoon": "Jo'nash kamida {minutes} daqiqadan keyin bo'lishi kerak",
+  "@icDrvTooSoon": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvTooFar": "Qatnov ko'pi bilan {days} kun oldin e'lon qilinadi",
+  "@icDrvTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvMyTripsTitle": "Qatnovlarim",
+  "icDrvUpcoming": "Kelgusi",
+  "icDrvPast": "O'tgan",
+  "icDrvNoTrips": "Hali qatnov yo'q",
+  "icDrvNoTripsHint": "Birinchi qatnovingizni e'lon qiling",
+  "icDrvNewTrip": "Yangi qatnov",
+  "icDrvCancelTrip": "Qatnovni bekor qilish",
+  "icDrvCancelTripBody": "Barcha yo'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta'sir qiladi.",
+  "icDrvCancelReasonHint": "Sabab (masalan: mashina buzildi)",
+  "icDrvCancelReasonRequired": "Sababni yozing",
+  "icDrvTripCancelled": "Qatnov bekor qilindi",
+  "icRunTitle": "Qatnov",
+  "icRunPassengers": "Yo'lovchilar",
+  "icRunNoBookings": "Hali hech kim band qilmagan",
+  "icRunStartBoarding": "Yig'ishni boshlash",
+  "icRunStartBoardingHint": "Jo'nashdan 60 daqiqa oldin yoki mashina to'lganda ochiladi",
+  "icRunArrived": "Yetib keldim",
+  "icRunPickedUp": "Olindi",
+  "icRunNoShow": "Kelmadi",
+  "icRunNoShowTitle": "Yo'lovchi kelmadimi?",
+  "icRunNoShowBody": "Band bekor qilinadi, joy qaytarilmaydi. Yo'lovchiga qo'ng'iroq qilib ko'rdingizmi?",
+  "icRunNoShowConfirm": "Ha, kelmadi",
+  "icRunClose": "Yopish",
+  "icRunDepart": "Surib yo'lga chiqing",
+  "icRunDepartHint": "Avval har bir yo'lovchini oling yoki «Kelmadi» deb belgilang",
+  "icRunDropOff": "Tushirdim",
+  "icRunCollectCash": "Naqd oling: {amount}",
+  "@icRunCollectCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunCompletedTitle": "Qatnov yakunlandi",
+  "icRunTotalCash": "Jami naqd: {amount}",
+  "@icRunTotalCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunCancelledTitle": "Qatnov bekor qilingan",
+  "icRunCall": "Qo'ng'iroq qilish",
+  "icRunPhoneLater": "Raqam jo'nashga 60 daqiqa qolganda ochiladi",
+  "icRunWholeCar": "Butun mashina",
+  "icRunSeats": "{count} joy",
+  "@icRunSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunReasonTooEarly": "Yig'ish jo'nashdan 60 daqiqa oldin ochiladi",
+  "icRunReasonNoBookings": "Qatnovda faol yo'lovchi yo'q",
+  "icRunReasonPending": "Hali olinmagan yo'lovchi bor — oling yoki «Kelmadi» deb belgilang",
+  "icRunReasonWrongStatus": "Qatnov holati o'zgargan, ro'yxat yangilandi",
+  "icPlaceAtPoint": "{place}da",
+  "icPlaceToAddress": "Manzilimgacha",
+  "icPlaceFromAddress": "Manzilimdan",
+  "icExtensionHint": "{place}dan {maxKm} km gacha · {price}/km qo'shiladi",
+  "icExtensionDropoffLine": "{place} → manzil: {km} km × {price}",
+  "icExtensionPickupLine": "Manzil → {place}: {km} km × {price}",
+  "icExtensionEstimated": "taxminiy masofa",
+  "icOutsideExtension": "Manzil {place}dan {maxKm} km dan uzoqda",
+  "icBasePrice": "Qatnov narxi",
+  "icQuoteLoading": "Narx hisoblanmoqda…",
+  "icQuoteFailed": "Narxni hisoblab bo'lmadi",
+  "icQuoteRetry": "Qayta urinish",
+  "icRunExtension": "Shahar ichida +{km} km ({place})",
+  "@icPlaceAtPoint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionHint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionDropoffLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionPickupLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icOutsideExtension": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      }
+    }
+  },
+  "@icRunExtension": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icErrOutOfZone": "Bu qatnov sizning tumaningizga bormaydi ({zones}). Boshqa qatnovni tanlang.",
+  "@icErrOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icErrDetourTooLong": "Bu qatnov sizning manzilingizga katta aylanma qiladi (+{minutes} daq). Boshqa qatnovni tanlang.",
+  "@icErrDetourTooLong": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icFitYourWay": "Sizning tomonga",
+  "icFitOtherDistrict": "Boshqa tumanga",
+  "icFitDetour": "+{minutes} daq aylanma",
+  "@icFitDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icTripDistricts": "Tumanlar: {zones}",
+  "@icTripDistricts": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icAddressFilterDropoff": "Tushish manzilim (ixtiyoriy)",
+  "icAddressFilterPickup": "Olinish manzilim (ixtiyoriy)",
+  "icAddressFilterHint": "Manzilni tanlasangiz, sizning tomonga boradigan qatnovlar belgilanadi",
+  "icAddressFilterClear": "Manzilni tozalash",
+  "icQuoteOutOfZone": "Bu qatnov faqat shu tumanlarga boradi: {zones}",
+  "@icQuoteOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icQuoteDetour": "Manzilingiz mashinani +{minutes} daq aylantiradi (ko'pi bilan {limit} daq)",
+  "@icQuoteDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "icPickAnotherTrip": "Boshqa qatnovni yoki manzilni tanlang",
+  "icPublishDistrictsOrigin": "Olish tumanlari ({place})",
+  "@icPublishDistrictsOrigin": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icPublishDistrictsDestination": "Tushirish tumanlari ({place})",
+  "@icPublishDistrictsDestination": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icAllDistricts": "Hamma tumanlar",
+  "icPublishDistrictsHint": "Faqat tanlangan tumanlardagi yo'lovchilar band qila oladi — mashina shahar bo'ylab tarqalib ketmaydi",
+  "icRunEtaFromPrev": "~{minutes} daq",
+  "@icRunEtaFromPrev": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunNavigate": "Navigatsiya",
+  "icRunOrderOptimized": "Eng qisqa yo'l tartibi · jami ~{minutes} daq",
+  "@icRunOrderOptimized": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunOrderNearest": "Eng yaqindan tartib",
+  "icRunTerminal": "Keyin {place}: ~{minutes} daq",
+  "@icRunTerminal": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icErrRequestAlreadyOpen": "Sizda allaqachon ochiq so'rov bor — avval uni bekor qiling yoki narxini oshiring",
+  "icErrRequestClosed": "So'rov endi ochiq emas: uni boshqa haydovchi oldi yoki muddati tugadi",
+  "icErrRequestNotFound": "So'rov topilmadi",
+  "icReqTitle": "So'rov qoldirish",
+  "icReqIntro": "Mos qatnov topilmasa, so'rov qoldiring: haydovchilarga xabar boradi va birinchi qabul qilgan haydovchi sizni olib ketadi.",
+  "icReqCtaTitle": "Mos vaqt topilmadimi?",
+  "icReqCtaSubtitle": "So'rov qoldiring — haydovchilar o'zlari taklif qiladi",
+  "icReqNoTripsHint": "Boshqa kunni tanlang yoki so'rov qoldiring",
+  "icReqWindowTitle": "Qachon jo'nash qulay",
+  "icReqWindowFrom": "Dan",
+  "icReqWindowTo": "Gacha",
+  "icReqWindowHint": "Haydovchi shu oraliqdagi istalgan vaqtda jo'naydi. Oraliq tugaguncha haydovchi topilmasa, so'rov o'zi yopiladi.",
+  "icReqWindowInvalid": "Oraliq oxiri boshidan keyin bo'lishi kerak",
+  "icReqWindowTooShort": "Oraliq kamida {minutes} daqiqa bo'lishi kerak",
+  "@icReqWindowTooShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooLong": "Oraliq ko'pi bilan {hours} soat bo'lishi mumkin",
+  "@icReqWindowTooLong": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooSoon": "Oraliq juda erta tugaydi — kechroq vaqtni tanlang",
+  "icReqWindowTooFar": "So'rovni ko'pi bilan {days} kun oldinga qoldirish mumkin",
+  "@icReqWindowTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqBonusTitle": "Narxni oshirish",
+  "icReqBonusHint": "Ixtiyoriy: haydovchi tezroq topiladi",
+  "icReqBonusIncrease": "Narxni oshirish",
+  "icReqBonusDecrease": "Narxni kamaytirish",
+  "icReqSubmit": "So'rov qoldirish",
+  "icReqCreated": "So'rov yuborildi — haydovchi topilsa xabar beramiz",
+  "icReqMineTitle": "Mening so'rovlarim",
+  "icReqMineEmpty": "Hozircha so'rovlar yo'q",
+  "icReqMineEmptyHint": "Mos qatnov topilmasa, qidiruv ekranidan so'rov qoldiring",
+  "icReqSeats": "{count} joy",
+  "@icReqSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqStatusOpen": "Haydovchi kutilmoqda",
+  "icReqStatusAccepted": "Qabul qilindi",
+  "icReqStatusCancelled": "Bekor qilindi",
+  "icReqStatusExpired": "Muddati tugadi",
+  "icReqWaiting": "Haydovchilar ko'rmoqda",
+  "icReqFound": "Haydovchi topildi — band yaratildi",
+  "icReqOpenBooking": "Bandni ko'rish",
+  "icReqRaise": "Narxni oshirish",
+  "icReqRaiseTitle": "Narxni oshirish",
+  "icReqRaiseHint": "Narxni faqat oshirish mumkin; yangi narx haydovchilar doskasida darhol ko'rinadi.",
+  "icReqRaiseConfirm": "Oshirish",
+  "icReqRaised": "Narx oshirildi",
+  "icReqCancel": "Bekor qilish",
+  "icReqCancelTitle": "So'rovni bekor qilasizmi?",
+  "icReqCancelBody": "Haydovchilar uni endi ko'rmaydi.",
+  "icReqCancelKeep": "Yo'q",
+  "icReqCancelConfirm": "Ha, bekor qilish",
+  "icReqCancelled": "So'rov bekor qilindi",
+  "icReqBoardTitle": "Yo'lovchi so'rovlari",
+  "icReqBoardShort": "So'rovlar",
+  "icReqBoardEmpty": "Hozircha ochiq so'rov yo'q",
+  "icReqBoardEmptyHint": "Yangi so'rov tushsa, push keladi va ro'yxat o'zi yangilanadi",
+  "icReqBoardBonus": "shundan qo'shimcha {amount}",
+  "@icReqBoardBonus": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icReqAccept": "Qabul qilish",
+  "icReqAcceptTitle": "So'rovni qabul qilish",
+  "icReqAcceptPickTrip": "Qaysi qatnovingizga qo'shilsin",
+  "icReqAcceptPickTime": "Jo'nash vaqtini tanlang",
+  "icReqAcceptNewTripHint": "Shu vaqtga yangi qatnov ochiladi; qolgan joylar boshqa yo'lovchilarga ochiq bo'ladi.",
+  "icReqAcceptTooLate": "Bu oraliqqa ulgurib bo'lmaydi",
+  "icReqAcceptConfirm": "Qabul qilish",
+  "icReqAcceptedExisting": "Yo'lovchi qatnovingizga qo'shildi",
+  "icReqAcceptedNewTrip": "Yangi qatnov ochildi, yo'lovchi qo'shildi",
+  "icReqAcceptSlotPassed": "Tanlangan vaqt o'tib ketdi — kechroq vaqtni tanlang",
+  "icReqAcceptNoRoom": "Joy yetmaydi",
+  "icReqAcceptNoRoomHint": "Bu oraliqdagi qatnovingizda joy yetmaydi, shuning uchun so'rovni qabul qilib bo'lmaydi.",
+  "icReqAcceptOverlap": "Bu oraliq boshqa qatnovingiz bilan to'qnashadi (orada kamida 3 soat bo'lishi kerak)"
+}

@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -56,6 +57,11 @@ export class UpdateRestaurantDto {
   @IsString()
   @MaxLength(300)
   address?: string;
+
+  @ApiPropertyOptional({ example: '123456789', description: "STIR (INN), 9 raqam — fiskal chekdagi komitent" })
+  @IsOptional()
+  @Matches(/^\d{9}$/, { message: "STIR 9 ta raqamdan iborat bo'lishi kerak" })
+  tin?: string;
 
   @ApiPropertyOptional({ type: [WorkingHoursDayDto] })
   @IsOptional()

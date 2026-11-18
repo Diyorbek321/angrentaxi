@@ -3,6 +3,8 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { getServerLocale } from '@/lib/i18n/server';
+import { t } from '@/locales';
 
 const manrope = localFont({
   src: [
@@ -26,12 +28,14 @@ const jetbrainsMono = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'Angren Taxi — Restoran paneli',
-  description: 'Restoran buyurtmalari va menyusini boshqarish paneli',
-};
+export function generateMetadata(): Metadata {
+  getServerLocale();
+  const m = t();
+  return { title: m.meta.title, description: m.meta.description };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = getServerLocale();
   return (
     /*
      * `suppressHydrationWarning` — pastdagi skript <html> ga `dark` klassini
@@ -39,12 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
      * "mos kelmadi" deb hisoblardi. Skript bloklab ishlaydi, shuning uchun
      * birinchi bo'yashda tema allaqachon to'g'ri — "oq chaqnash" bo'lmaydi.
      */
-    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`${manrope.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

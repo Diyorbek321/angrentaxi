@@ -1,19 +1,24 @@
 // Driver-facing earnings aggregates (GET /orders/earnings/*): today's gross
-// revenue, and the today / last-7-days / last-30-days gross-commission-net
-// breakdown. Read-only analytics over the orders + transactions ledger — it
+// revenue, and the today / last-7-days / last-30-days breakdown
+// (gross / commission / withheld tax / shift passes / net). Read-only analytics over the orders + transactions ledger — it
 // never computes commission itself, only sums what completion already booked.
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { DriverEarningsBreakdown, DriverEarningsPeriod } from './orders.types';
+import { TAX_WITHHOLDING_LEDGER_TAG } from '../tax/tax-withholding';
+import { ShiftPassesService } from '../shift-passes/shift-passes.service';
+import { driverGrossFareSql } from './commission-policy';
 
 @Injectable()
 export class OrdersEarningsService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    // Ixtiyoriy: yo'q bo'lsa smena narxi 0 (eski wiring'dagi spec'lar).
+    @Optional() private readonly shiftPasses?: ShiftPassesService,
   ) {}
 
   async getDriverEarningsToday(driverId: string): Promise<{ today: number }> {
@@ -60,6 +65,11 @@ export class OrdersEarningsService {
     // transaction at completion time (see completeTrip), so sum that ledger
     // entry directly rather than recomputing from the driver's current
     // commission rate (which may have changed since the trip happened).
+    //
+    // Withheld tax is joined the same way (its own `tax_withholding` row per
+    // order). Both joins match at most one row per order (tax: unique index;
+    // commission: one row written per completion), so SUM over the join does
+    // not multiply the gross.
     const result = await this.orderRepository
       .createQueryBuilder('o')
       .leftJoin(
@@ -68,18 +78,43 @@ export class OrdersEarningsService {
         't.order_id = o.id AND t.user_id = o.driver_id AND t.external_id = :commissionExternalId',
         { commissionExternalId: 'commission' },
       )
-      .select('COALESCE(SUM(COALESCE(o.final_price, o.estimated_price)), 0)', 'gross')
+      .leftJoin(
+        Transaction,
+        'tx',
+        'tx.order_id = o.id AND tx.user_id = o.driver_id AND tx.external_id = :taxExternalId',
+        { taxExternalId: TAX_WITHHOLDING_LEDGER_TAG },
+      )
+      .select(`COALESCE(SUM(${driverGrossFareSql('t')}), 0)`, 'gross')
       .addSelect('COALESCE(SUM(t.amount), 0)', 'commission')
+      .addSelect('COALESCE(SUM(tx.amount), 0)', 'tax')
+      // Chaqiq (tips) — buyurtmaning o'z ustuni (har buyurtmada bitta qiymat;
+      // yuqoridagi join'lar buyurtma qatorini ko'paytirmaydi).
+      .addSelect('COALESCE(SUM(o.tip_amount), 0)', 'tips')
       .addSelect('COUNT(DISTINCT o.id)', 'trips')
       .where('o.driver_id = :driverId', { driverId })
       .andWhere('o.status = :s', { s: OrderStatus.COMPLETED })
       .andWhere('o.created_at >= :from', { from })
-      .getRawOne<{ gross: string; commission: string; trips: string }>();
+      .getRawOne<{ gross: string; commission: string; tax?: string; tips?: string; trips: string }>();
 
     const gross = parseFloat(result?.gross ?? '0') || 0;
     const commission = parseFloat(result?.commission ?? '0') || 0;
+    const taxWithheld = parseFloat(result?.tax ?? '0') || 0;
     const trips = parseInt(result?.trips ?? '0', 10) || 0;
+    const tips = parseFloat(result?.tips ?? '0') || 0;
+    const shiftPassCost = this.shiftPasses ? await this.shiftPasses.totalCostSince(driverId, from) : 0;
 
-    return { gross, commission, net: gross - commission, trips };
+    const net = gross - commission - taxWithheld - shiftPassCost;
+    return {
+      gross,
+      commission,
+      taxWithheld,
+      shiftPassCost,
+      // `net` — yo'l haqidan sof daromad; chaqiq KIRMAYDI (eski ma'no saqlangan).
+      net,
+      trips,
+      // Chaqiq hamyonga to'liq (komissiyasiz, soliqsiz) tushadi — alohida.
+      tips,
+      netWithTips: net + tips,
+    };
   }
 }

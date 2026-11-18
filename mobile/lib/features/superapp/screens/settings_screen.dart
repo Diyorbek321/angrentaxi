@@ -1,5 +1,14 @@
+import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/widgets/language_picker.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,10 +19,55 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _lang = 'UZ';
-  bool _dark = false;
-  bool _push = true;
-  bool _faceId = true;
+  late bool _push = sl<LocalStorage>().getPushEnabled();
+  bool _savingPush = false;
+
+  /// Turns push delivery on or off for this device.
+  ///
+  /// The toggle used to be pure `setState` — it reset on every rebuild and was
+  /// wired to nothing, so switching it off changed no behaviour at all. It now
+  /// persists the choice and tells the server, which is what actually stops
+  /// (or resumes) notifications for this device's FCM token.
+  Future<void> _setPush(bool enabled) async {
+    setState(() {
+      _push = enabled;
+      _savingPush = true;
+    });
+
+    await sl<LocalStorage>().savePushEnabled(enabled);
+
+    try {
+      final push = PushNotifications.instance;
+      if (enabled) {
+        await push.ensurePermission();
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          // ⚠️ Kalit `token` — ilgari `fcmToken` yuborilardi va server
+          // (`forbidNonWhitelisted`) har safar 400 qaytarardi.
+          await sl<ApiClient>().post(
+            ApiEndpoints.registerFcmToken,
+            data: {'token': token, 'platform': 'android', 'role': 'passenger'},
+          );
+        }
+      } else {
+        // Serverda tokenni o'chiradigan endpoint yo'q — qurilmadagi FCM
+        // tokeni o'chiriladi, shunda eski tokenga yuborilgan push yetmaydi.
+        await FirebaseMessaging.instance.deleteToken();
+        push.forgetSentToken();
+      }
+    } catch (e) {
+      debugPrint('[Settings] push toggle sync failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.saSettingsPushSyncFailed),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingPush = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,40 +75,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: agBg,
       body: Column(
         children: [
-          AgHeader(title: 'Sozlamalar', onBack: () => Navigator.of(context).pop()),
+          AgHeader(title: context.l10n.saSettingsTitle, onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
-                _label('UMUMIY'),
+                // Only settings that do something are listed.
+                //
+                // Removed: a dark-mode toggle (there is no dark theme) and
+                // "Face ID bilan kirish" (no biometric auth exists). The UZ/RU
+                // switch is back now that the app is actually localised.
+                _label(context.l10n.saSettingsSectionGeneral),
                 _group([
-                  Row(
-                    children: [
-                      const ExcludeSemantics(
-                        child: Icon(Icons.language_rounded, size: 22, color: agSubtle),
-                      ),
-                      const SizedBox(width: kSpace3),
-                      const Expanded(child: Text('Til', style: TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText))),
-                      _langChip('UZ'),
-                      const SizedBox(width: kSpace2),
-                      _langChip('RU'),
-                    ],
+                  _navRow(
+                    Icons.language_rounded,
+                    '${context.l10n.appLanguage}: '
+                    '${languageName(context, currentAppLocale(context))}',
+                    onTap: () => showLanguagePicker(context),
                   ),
-                  _toggleRow(Icons.dark_mode_rounded, 'Tungi rejim', _dark, (v) => setState(() => _dark = v)),
-                  _toggleRow(Icons.notifications_rounded, 'Push bildirishnomalar', _push, (v) => setState(() => _push = v), last: true),
+                  _toggleRow(
+                    Icons.notifications_rounded,
+                    context.l10n.saSettingsPush,
+                    _push,
+                    _savingPush ? null : (v) => _setPush(v),
+                    last: true,
+                  ),
                 ]),
                 const SizedBox(height: kSpace5),
-                _label('XAVFSIZLIK'),
+                _label(context.l10n.saSettingsSectionHelp),
                 _group([
-                  _toggleRow(Icons.fingerprint_rounded, 'Face ID bilan kirish', _faceId, (v) => setState(() => _faceId = v)),
-                  _navRow(Icons.shield_rounded, 'Maxfiylik'),
-                  _navRow(Icons.support_agent_rounded, 'Yordam markazi', last: true,
+                  _navRow(Icons.support_agent_rounded, context.l10n.saHelpCenter, last: true,
                       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
                 ]),
                 const SizedBox(height: kSpace6),
-                const Center(
-                  child: Text('Angren Go · versiya 2.4.0',
-                      style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600, fontSize: kFontCaption)),
+                Center(
+                  // Was hardcoded "2.4.0" while pubspec said 1.0.0.
+                  child: Text(context.l10n.saSettingsVersion(AppConfig.appVersion),
+                      style: const TextStyle(color: agSubtle, fontWeight: FontWeight.w600, fontSize: kFontCaption)),
                 ),
               ],
             ),
@@ -79,44 +136,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(children: rows),
       );
 
-  Widget _langChip(String code) {
-    final active = _lang == code;
-    return Semantics(
-      button: true,
-      selected: active,
-      label: code,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => setState(() => _lang = code),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          constraints: const BoxConstraints(
-            minHeight: kMinTapTarget,
-            minWidth: kMinTapTarget,
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: kSpace3, vertical: kSpace2),
-          decoration: BoxDecoration(
-            // Faol chip — interaktiv to'ldirish (`agPrimary` + oq, 5.38:1).
-            // `agGreen` (#10A064) oq yozuv bilan atigi 3.3:1 berardi.
-            color: active ? agPrimary : agBg,
-            borderRadius: BorderRadius.circular(kRadiusSm),
-            border: Border.all(color: active ? agPrimary : agBorder),
-          ),
-          child: Text(
-            code,
-            style: TextStyle(
-              fontSize: kFontLabel,
-              fontWeight: FontWeight.w800,
-              color: active ? agOnPrimary : agText,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _toggleRow(IconData icon, String label, bool value, ValueChanged<bool> onChanged, {bool last = false}) {
+  Widget _toggleRow(IconData icon, String label, bool value, ValueChanged<bool>? onChanged, {bool last = false}) {
     return Container(
       constraints: const BoxConstraints(minHeight: kMinTapTarget),
       padding: const EdgeInsets.symmetric(vertical: kSpace3),

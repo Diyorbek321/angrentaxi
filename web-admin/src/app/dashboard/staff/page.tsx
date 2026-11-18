@@ -1,39 +1,80 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck, Users } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ShieldCheck, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { Modal } from '@/components/ui/Modal';
+import { Avatar } from '@/components/ui/Avatar';
+import { usersApi, User, Permission, ALL_PERMISSIONS } from '@/lib/api';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
-import { usersApi, User, Permission, ALL_PERMISSIONS, PERMISSION_LABELS } from '@/lib/api';
+  permissionGroups,
+  permissionLabels,
+  permissionShortLabels,
+} from '@/lib/permission-labels';
+import { MONEY_OUT_PERMISSIONS, matchRoleTemplate, roleTemplates } from '@/lib/role-templates';
 import { useToast } from '@/components/ui/Toast';
-import { formatPhone, getFullName } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatPhone, fullName } from '@/lib/format';
+import { t } from '@/locales';
+
+function PermissionSummary({ perms }: { perms: Permission[] }) {
+  const m = t().staff;
+  if (perms.length === 0) return <Badge variant="danger">{m.noPermissions}</Badge>;
+  // "To'liq" = every non-money permission; payout approval shows as its own badge.
+  const hasMoneyOut = perms.some((p) => MONEY_OUT_PERMISSIONS.includes(p));
+  const isFullManager = ALL_PERMISSIONS.every((p) => MONEY_OUT_PERMISSIONS.includes(p) || perms.includes(p));
+  if (isFullManager) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Badge variant="success">{m.fullAccess}</Badge>
+        {hasMoneyOut && <Badge variant="neutral">{permissionShortLabels().withdrawals_approve}</Badge>}
+      </div>
+    );
+  }
+  // Job-named role first: "Moliya" reads faster than five permission chips.
+  const template = matchRoleTemplate(perms);
+  if (template) {
+    return (
+      <Badge variant="neutral" title={perms.map((p) => permissionShortLabels()[p] ?? p).join(', ')}>
+        {template.label}
+      </Badge>
+    );
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {perms.slice(0, 3).map((p) => (
+        <Badge key={p} variant="neutral">
+          {permissionShortLabels()[p] ?? p}
+        </Badge>
+      ))}
+      {perms.length > 3 && (
+        <Badge
+          variant="neutral"
+          title={perms
+            .slice(3)
+            .map((p) => permissionShortLabels()[p] ?? p)
+            .join(', ')}
+        >
+          +{perms.length - 3}
+        </Badge>
+      )}
+    </div>
+  );
+}
 
 export default function StaffRolesPage() {
+  const c = t().common;
+  const m = t().staff;
   const { toast } = useToast();
   const [managers, setManagers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<Permission[]>([]);
   const [saving, setSaving] = useState(false);
@@ -45,17 +86,26 @@ export default function StaffRolesPage() {
       setManagers(res.data.data?.users ?? []);
       setError(null);
     } catch {
-      setError("Xodimlarni yuklab bo'lmadi.");
-      toast({ title: 'Xatolik', description: "Xodimlarni yuklashda xatolik", variant: 'error' });
+      // Last good rows stay on screen; DataTable shows banner + retry.
+      setError(m.loadFailed);
+      toast({ title: c.error, description: m.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     fetchManagers();
   }, [fetchManagers]);
+
+  const filteredManagers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return managers;
+    return managers.filter((u) =>
+      [fullName(u.firstName, u.lastName, ''), u.phone].join(' ').toLowerCase().includes(q)
+    );
+  }, [managers, search]);
 
   const openEdit = (user: User) => {
     setEditTarget(user);
@@ -68,16 +118,24 @@ export default function StaffRolesPage() {
   };
 
   const togglePermission = (perm: Permission) => {
-    setDraftPermissions((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    setDraftPermissions((prev) => (prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]));
+  };
+
+  // "Barchasi" = to'liq menejer, lekin pul chiqarish emas: u faqat ataylab, alohida belgilanadi.
+  const applyPreset = (preset: 'all' | 'none') => {
+    setDraftPermissions(
+      preset === 'all' ? ALL_PERMISSIONS.filter((p) => !MONEY_OUT_PERMISSIONS.includes(p)) : []
     );
   };
 
-  const applyPreset = (preset: 'all' | 'dispatch-only' | 'none') => {
-    if (preset === 'all') setDraftPermissions(ALL_PERMISSIONS);
-    else if (preset === 'none') setDraftPermissions([]);
-    else setDraftPermissions(['dispatch', 'drivers_view']);
-  };
+  const activeTemplate = matchRoleTemplate(draftPermissions);
+  const grantsMoneyOut = draftPermissions.some((p) => MONEY_OUT_PERMISSIONS.includes(p));
+
+  // "Saqlash" is enabled only on a real change (dirty).
+  const originalPermissions = editTarget?.permissions ?? [];
+  const isDirty =
+    draftPermissions.length !== originalPermissions.length ||
+    draftPermissions.some((p) => !originalPermissions.includes(p));
 
   const handleSave = async () => {
     if (!editTarget) return;
@@ -85,142 +143,173 @@ export default function StaffRolesPage() {
     try {
       await usersApi.updatePermissions(editTarget.id, draftPermissions);
       setManagers((prev) =>
-        prev.map((m) => (m.id === editTarget.id ? { ...m, permissions: draftPermissions } : m))
+        prev.map((u) => (u.id === editTarget.id ? { ...u, permissions: draftPermissions } : u))
       );
-      toast({ title: 'Ruxsatlar yangilandi', variant: 'success' });
+      toast({
+        title: m.updated,
+        description: m.updatedDesc(fullName(editTarget.firstName, editTarget.lastName), draftPermissions.length),
+        variant: 'success',
+      });
       closeEdit();
     } catch {
-      toast({ title: 'Xatolik', description: 'Ruxsatlarni saqlashda xatolik', variant: 'error' });
+      toast({ title: c.error, description: m.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      header: m.colStaff,
+      cell: (u) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={u.firstName} lastName={u.lastName} size="sm" />
+          <div className="min-w-0 leading-tight">
+            <p className="font-medium text-ink truncate">{fullName(u.firstName, u.lastName)}</p>
+            <p className="num text-xs text-muted whitespace-nowrap">{formatPhone(u.phone)}</p>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'perms', header: m.colPermissions, cell: (u) => <PermissionSummary perms={u.permissions ?? []} /> },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{c.action}</span>,
+      align: 'right',
+      cell: (u) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => openEdit(u)}
+          leftIcon={<ShieldCheck size={13} aria-hidden />}
+        >
+          {m.editPermissions}
+        </Button>
+      ),
+    },
+  ];
+
+  const q = search.trim();
+
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Xodimlar va ruxsatlar"
-        description="Har bir menejer aynan qaysi bo'limlarga kira olishini belgilang — masalan, faqat dispetcherlik yoki to'liq boshqaruv"
-        icon={<Users className="h-4 w-4" />}
+        title={m.title}
+        description={m.description}
       />
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-0">
-            {error ? (
-              <ErrorState message={error} onRetry={fetchManagers} />
-            ) : isLoading ? (
-              <div className="p-4">
-                <SkeletonTable rows={4} cols={3} />
+
+      <DataTable
+        ariaLabel={m.tableAria}
+        columns={columns}
+        rows={filteredManagers}
+        rowKey={(u) => u.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchManagers}
+        maxHeightClassName="max-h-[calc(100vh-260px)]"
+        toolbar={
+          <FilterBar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder={m.searchPlaceholder}
+            searchAriaLabel={m.searchAria}
+          />
+        }
+        isFiltered={q !== ''}
+        onClearFilters={() => setSearch('')}
+        emptyFiltered={{ title: m.emptyFilteredTitle, description: m.emptyFilteredDesc(q) }}
+        empty={{
+          variant: 'first-use',
+          icon: <Users aria-hidden />,
+          title: m.emptyTitle,
+          description: m.emptyDesc,
+        }}
+      />
+
+      <Modal
+        isOpen={!!editTarget}
+        onClose={closeEdit}
+        size="lg"
+        title={editTarget ? m.modalTitle(fullName(editTarget.firstName, editTarget.lastName)) : m.colPermissions}
+        description={m.modalDesc}
+        footer={
+          <>
+            <p className="mr-auto num text-xs text-muted">
+              {m.selected(draftPermissions.length, ALL_PERMISSIONS.length)}
+              {isDirty && <span className="ml-2 text-ink">{m.unsaved}</span>}
+            </p>
+            <Button variant="secondary" onClick={closeEdit} disabled={saving}>
+              {c.cancel}
+            </Button>
+            <Button isLoading={saving} disabled={!isDirty} onClick={handleSave}>
+              {c.save}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-subtle">
+          {m.templatesLabel}
+          <span className="ml-2 normal-case tracking-normal font-normal text-muted">
+            {activeTemplate ? activeTemplate.label : draftPermissions.length > 0 ? m.customRole : ''}
+          </span>
+        </p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {roleTemplates().map((tpl) => (
+            <Button
+              key={tpl.id}
+              size="sm"
+              variant={activeTemplate?.id === tpl.id ? 'primary' : 'secondary'}
+              aria-pressed={activeTemplate?.id === tpl.id}
+              title={tpl.description}
+              onClick={() => setDraftPermissions([...tpl.permissions])}
+            >
+              {tpl.label}
+            </Button>
+          ))}
+          <Button size="sm" variant="secondary" onClick={() => applyPreset('all')}>
+            {m.presetAll}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => applyPreset('none')}>
+            {m.presetClear}
+          </Button>
+        </div>
+
+        {grantsMoneyOut && (
+          <div
+            role="note"
+            className="mb-4 flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light"
+          >
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
+            <span>{m.moneyOutWarning}</span>
+          </div>
+        )}
+
+        {/* Permissions grouped by DOMAIN — the operator thinks "which section". */}
+        <div className="space-y-4">
+          {permissionGroups().map((group) => (
+            <fieldset key={group.title}>
+              <legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-subtle">
+                {group.title}
+              </legend>
+              <div className="rounded-ds-md border border-line divide-y divide-line">
+                {group.permissions.map((perm) => {
+                  const checked = draftPermissions.includes(perm);
+                  return (
+                    <div key={perm} className={cn('px-3 py-2', checked && 'bg-mint-tint/40')}>
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => togglePermission(perm)}
+                        label={permissionLabels()[perm]}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ) : managers.length === 0 ? (
-              <EmptyState
-                icon={<Users className="h-6 w-6" />}
-                title="Manager rolidagi hisoblar topilmadi"
-                description="Manager roli bilan hisob yaratilgach, u shu yerda ko'rinadi."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Xodim</TableHead>
-                    <TableHead>Ruxsatlar</TableHead>
-                    <TableHead>Amallar</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {managers.map((user) => {
-                    const perms = user.permissions ?? [];
-                    return (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <p className="font-medium text-ink">
-                            {getFullName(user.firstName, user.lastName)}
-                          </p>
-                          <p className="text-caption text-subtle">{formatPhone(user.phone)}</p>
-                        </TableCell>
-                        <TableCell>
-                          {perms.length === 0 ? (
-                            <Badge variant="destructive">Hech qanday ruxsat yo&apos;q</Badge>
-                          ) : perms.length === ALL_PERMISSIONS.length ? (
-                            <Badge variant="success">To&apos;liq (barcha bo&apos;limlar)</Badge>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {perms.slice(0, 3).map((p) => (
-                                <Badge key={p} variant="secondary">{p}</Badge>
-                              ))}
-                              {perms.length > 3 && (
-                                <Badge variant="outline">+{perms.length - 3}</Badge>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="outline" onClick={() => openEdit(user)}>
-                            <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
-                            Ruxsatlarni tahrirlash
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Dialog open={!!editTarget} onOpenChange={closeEdit}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editTarget && getFullName(editTarget.firstName, editTarget.lastName)} — ruxsatlar
-            </DialogTitle>
-            <DialogDescription>
-              Belgilangan bo&apos;limlarga kira oladi. ADMIN har doim hammasiga kira oladi —
-              bu ro&apos;yxat faqat MANAGER hisoblari uchun.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mb-2 flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => applyPreset('all')}>
-              Barchasi (To&apos;liq menejer)
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => applyPreset('dispatch-only')}>
-              Faqat dispetcherlik
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => applyPreset('none')}>
-              Tozalash
-            </Button>
-          </div>
-
-          <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-            {ALL_PERMISSIONS.map((perm) => (
-              <label
-                key={perm}
-                className="flex cursor-pointer items-center gap-3 rounded-ds-md bg-surface-2 px-3 py-2.5 text-body transition-colors duration-fast hover:bg-surface-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={draftPermissions.includes(perm)}
-                  onChange={() => togglePermission(perm)}
-                  className="h-4 w-4 rounded border-line-strong bg-transparent accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                />
-                <span className="text-ink">{PERMISSION_LABELS[perm]}</span>
-              </label>
-            ))}
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeEdit}>
-              Bekor qilish
-            </Button>
-            <Button variant="success" isLoading={saving} onClick={handleSave}>
-              Saqlash
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </fieldset>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }

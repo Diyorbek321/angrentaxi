@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { DriverDocumentsService, UploadedDiskFile } from './driver-documents.service';
+import { DriverDocumentsService, UploadedMemoryFile } from './driver-documents.service';
+import { DriverUploadsStore } from './driver-uploads';
 import {
   DriverDocument,
   DriverDocumentReviewStatus,
@@ -14,14 +15,14 @@ describe('DriverDocumentsService', () => {
   let service: DriverDocumentsService;
   let documentRepository: { save: jest.Mock; find: jest.Mock; findOne: jest.Mock };
   let driversService: { findByUserIdOrThrow: jest.Mock };
+  let uploads: { save: jest.Mock; open: jest.Mock };
 
   const driver = { id: 'driver-1', userId: 'user-1' } as Driver;
 
-  const diskFile: UploadedDiskFile = {
-    filename: 'abc123.jpg',
-    path: '/tmp/abc123.jpg',
+  const diskFile: UploadedMemoryFile = {
+    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     mimetype: 'image/jpeg',
-    size: 1024,
+    size: 4,
   };
 
   beforeEach(async () => {
@@ -34,11 +35,17 @@ describe('DriverDocumentsService', () => {
       findByUserIdOrThrow: jest.fn().mockResolvedValue(driver),
     };
 
+    uploads = {
+      save: jest.fn().mockResolvedValue('/uploads/driver-documents/abc123.jpg'),
+      open: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DriverDocumentsService,
         { provide: getRepositoryToken(DriverDocument), useValue: documentRepository },
         { provide: DriversService, useValue: driversService },
+        { provide: DriverUploadsStore, useValue: uploads },
       ],
     }).compile();
 
@@ -81,6 +88,17 @@ describe('DriverDocumentsService', () => {
       ).rejects.toThrow(BadRequestException);
 
       expect(documentRepository.save).not.toHaveBeenCalled();
+      // Nothing is written to storage for a request that was going to fail.
+      expect(uploads.save).not.toHaveBeenCalled();
+    });
+
+    it('stores the file only after resolving the driver', async () => {
+      driversService.findByUserIdOrThrow.mockRejectedValueOnce(new NotFoundException());
+
+      await expect(
+        service.recordUpload('user-x', DriverDocumentType.PASSPORT, diskFile),
+      ).rejects.toThrow(NotFoundException);
+      expect(uploads.save).not.toHaveBeenCalled();
     });
   });
 
@@ -190,5 +208,55 @@ describe('DriverDocumentsService', () => {
 
       expect(documentRepository.save).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('DriverDocumentsService.listPending', () => {
+  it('returns pending documents oldest first with the driver name and phone', async () => {
+    const find = jest.fn().mockResolvedValue([
+      {
+        id: 'doc-1',
+        driverId: 'driver-1',
+        documentType: DriverDocumentType.PASSPORT,
+        uploadedAt: new Date('2026-09-01T08:00:00Z'),
+        driver: { user: { firstName: 'Ali', lastName: 'Valiyev', phone: '+998901234571' } },
+      },
+      {
+        id: 'doc-2',
+        driverId: 'driver-2',
+        documentType: DriverDocumentType.LICENSE_FRONT,
+        uploadedAt: new Date('2026-09-02T08:00:00Z'),
+        driver: { user: { firstName: null, lastName: null, phone: '+998901234572' } },
+      },
+    ]);
+    const service = new DriverDocumentsService({ find } as never, {} as never, {} as never);
+
+    const result = await service.listPending();
+
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { reviewStatus: DriverDocumentReviewStatus.PENDING },
+        order: { uploadedAt: 'ASC' },
+        take: 200,
+      }),
+    );
+    expect(result).toEqual([
+      {
+        id: 'doc-1',
+        driverId: 'driver-1',
+        driverName: 'Ali Valiyev',
+        driverPhone: '+998901234571',
+        documentType: DriverDocumentType.PASSPORT,
+        uploadedAt: '2026-09-01T08:00:00.000Z',
+      },
+      {
+        id: 'doc-2',
+        driverId: 'driver-2',
+        driverName: null,
+        driverPhone: '+998901234572',
+        documentType: DriverDocumentType.LICENSE_FRONT,
+        uploadedAt: '2026-09-02T08:00:00.000Z',
+      },
+    ]);
   });
 });

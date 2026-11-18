@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { VehicleType } from '../../../database/entities/tariff.entity';
 
 export class CreateDriverDto {
   @ApiPropertyOptional({ example: 'Toyota Camry', description: 'Car model' })
@@ -29,4 +30,21 @@ export class CreateDriverDto {
   @Min(1990)
   @Max(new Date().getFullYear() + 1)
   carYear?: number;
+
+  @ApiPropertyOptional({
+    enum: VehicleType,
+    description:
+      "Yuk transporti turi. Bo'sh = yengil avtomobil (taksi). O'zi e'lon " +
+      'qiladi, xuddi carYear kabi — hujjat tekshiruvi driver_documents orqali.',
+  })
+  @IsOptional()
+  @IsEnum(VehicleType)
+  vehicleType?: VehicleType;
+
+  // ⚠️ `serviceTypes` ATAYLAB YO'Q — yangi profil doim `['taxi']` dan
+  // boshlanadi. Sabab tovuq-tuxum muammosi: xizmat turini yoqish tasdiqlangan
+  // material talab qiladi, material esa faqat MAVJUD profilga yuklanadi.
+  // Ro'yxatdan o'tishda tanlashga ruxsat berilsa, yo talab tekshirilmay
+  // qolardi (darvoza teshigi), yo ariza umuman qabul qilinmasdi.
+  // Haydovchi hujjatlarini yuklab, keyin `PATCH /drivers/me/services` qiladi.
 }

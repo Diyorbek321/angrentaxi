@@ -2,8 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
+  IsIn,
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsObject,
   IsOptional,
@@ -18,6 +21,7 @@ import {
   PaymentMethod,
   ServiceType,
 } from '../../../database/entities/order.entity';
+import { TRIP_OPTION_VALUES, TripOption } from '../trip-options';
 
 // Single intermediate stop on a multi-stop ride, between pickup and dropoff.
 export class WaypointDto {
@@ -57,17 +61,24 @@ export class CreateOrderDto {
   @Max(180)
   pickupLng: number;
 
-  @ApiProperty({ example: 40.1050, description: 'Dropoff latitude' })
+  /**
+   * Manzil IXTIYORIY: ikkalasi ham berilmasa — TAKSOMETR (faqat taksi),
+   * narx safar oxirida haqiqiy GPS izidan hisoblanadi. Faqat bittasi
+   * berilsa — 400 (`OrdersCreationService.create`).
+   */
+  @ApiPropertyOptional({ example: 40.1050, description: "Dropoff latitude. Omit both for a metered (taximeter) ride" })
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  dropoffLat: number;
+  dropoffLat?: number;
 
-  @ApiProperty({ example: 70.9500, description: 'Dropoff longitude' })
+  @ApiPropertyOptional({ example: 70.9500, description: 'Dropoff longitude. Omit both for a metered ride' })
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  dropoffLng: number;
+  dropoffLng?: number;
 
   @ApiPropertyOptional({ example: 'Angren city center', description: 'Pickup address text' })
   @IsOptional()
@@ -117,9 +128,38 @@ export class CreateOrderDto {
   @IsObject()
   details?: Record<string, unknown>;
 
+  @ApiPropertyOptional({
+    enum: TripOption,
+    isArray: true,
+    description: "Safar opsiyalari — faqat hammasini ta'minlay oladigan haydovchiga taklif qilinadi",
+    example: ['child_seat'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(TRIP_OPTION_VALUES.length)
+  @IsIn(TRIP_OPTION_VALUES, { each: true })
+  options?: TripOption[];
+
   @ApiPropertyOptional({ example: 'ANGREN10', description: 'Promo code to apply, if any' })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   promoCode?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-08-20T03:00:00.000Z',
+    description:
+      "Rejalashtirilgan olib ketish vaqti (ISO-8601, UTC). Berilmasa — " +
+      'buyurtma darhol haydovchi qidiruviga chiqadi.',
+  })
+  @IsOptional()
+  // ⚠️ `@IsDate() + @Type(() => Date)` ATAYLAB ISHLATILMAYDI: `main.ts`
+  // `ValidationPipe` ni `enableImplicitConversion: true` bilan ishga
+  // tushiradi, va bu rejimda sana konvertatsiyasi kutilmagan natija beradi
+  // (yaroqsiz satr `Invalid Date` ga aylanadi-yu, `@IsDate` dan o'tib
+  // ketishi mumkin). Satr sifatida qabul qilinadi, `Date` ga o'girish
+  // servisda — validatsiya bilan bir joyda — bajariladi.
+  @IsISO8601({ strict: true })
+  scheduledAt?: string;
 }

@@ -1,7 +1,11 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/platform/secure_screen.dart';
+import 'package:angren_taxi/features/payments/payment_url_policy.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Signature used to open the hosted checkout page after
@@ -32,6 +36,10 @@ typedef OpenPaymentCheckout = Future<bool?> Function(
 /// (`/payments/{payme,click,uzcard}/callback`), which updates the
 /// transaction row backing `GET /payments/wallet` /
 /// `GET /payments/transactions` independently of what this screen reports.
+/// Ilovaning o'z sxemasi (`angrengo://…`) — to'lov sahifasidan qaytish.
+bool isAppReturnUrl(String url) =>
+    classifyPaymentNavigation(url) == PaymentNavigation.appReturn;
+
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key, required this.result});
 
@@ -46,22 +54,78 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   bool _loading = true;
   String? _loadError;
 
+  /// Serverdan kelgan sahifa ma'lum provayderniki emas — ochilmaydi.
+  bool _untrusted = false;
+
   @override
   void initState() {
     super.initState();
+    // Karta raqami va SMS kodi skrinshotga, ekran yozuviga va "so'nggi
+    // ilovalar" rasmiga tushmasin.
+    SecureScreen.instance.acquire();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
+          // Siyosat: `payment_url_policy.dart`.
+          onNavigationRequest: (request) {
+            switch (classifyPaymentNavigation(request.url)) {
+              // Hamyonni to'ldirishdan qaytish havolasi
+              // (`angrengo://wallet/topup/<id>`, WALLET_TOPUP_RETURN_URL) —
+              // sahifa yopiladi, chaqiruvchi ekran holatni serverdan
+              // so'raydi. Qaytish to'lovni tasdiqlamaydi.
+              case PaymentNavigation.appReturn:
+                _finish(true);
+                return NavigationDecision.prevent;
+              case PaymentNavigation.allow:
+                return NavigationDecision.navigate;
+              case PaymentNavigation.external:
+                _openExternally(request.url);
+                return NavigationDecision.prevent;
+              case PaymentNavigation.block:
+                return NavigationDecision.prevent;
+            }
+          },
           onPageStarted: (_) => setState(() => _loading = true),
           onPageFinished: (_) => setState(() => _loading = false),
-          onWebResourceError: (error) => setState(() {
-            _loading = false;
-            _loadError = error.description;
-          }),
+          // Faqat asosiy sahifa xatosi: bitta rasm yoki analitika skripti
+          // yuklanmasa butun to'lov oynasi xato ekraniga almashardi.
+          onWebResourceError: (error) {
+            if (error.isForMainFrame == false) return;
+            setState(() {
+              _loading = false;
+              _loadError = error.description;
+            });
+          },
         ),
-      )
-      ..loadRequest(Uri.parse(widget.result.url));
+      );
+    _loadCheckout();
+  }
+
+  void _loadCheckout() {
+    if (!isTrustedCheckoutUrl(widget.result.url)) {
+      _loading = false;
+      _untrusted = true;
+      return;
+    }
+    _controller.loadRequest(Uri.parse(widget.result.url));
+  }
+
+  Future<void> _openExternally(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Bank ilovasi o'rnatilmagan — provayder sahifasi odatda boshqa yo'l
+      // taklif qiladi, WebView o'z joyida qoladi.
+    }
+  }
+
+  @override
+  void dispose() {
+    SecureScreen.instance.release();
+    super.dispose();
   }
 
   void _finish(bool completed) {
@@ -78,10 +142,13 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text("To'lov — ${widget.result.provider.toUpperCase()}"),
+          title: Text(
+            context.l10n
+                .saPaymentTitle(widget.result.provider.toUpperCase()),
+          ),
           leading: Semantics(
             button: true,
-            label: 'Yopish',
+            label: context.l10n.saClose,
             excludeSemantics: true,
             child: IconButton(
               icon: const Icon(Icons.close_rounded),
@@ -102,15 +169,17 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                 backgroundColor: kSurface2,
               ),
             Expanded(
-              child: _loadError != null
-                  ? _ErrorState(
-                      message: _loadError!,
-                      onRetry: () {
-                        setState(() => _loadError = null);
-                        _controller.loadRequest(Uri.parse(widget.result.url));
-                      },
-                    )
-                  : WebViewWidget(controller: _controller),
+              child: _untrusted
+                  ? AppErrorState(message: context.l10n.saPaymentUntrustedPage)
+                  : _loadError != null
+                      ? _ErrorState(
+                          message: _loadError!,
+                          onRetry: () {
+                            setState(() => _loadError = null);
+                            _loadCheckout();
+                          },
+                        )
+                      : WebViewWidget(controller: _controller),
             ),
             SafeArea(
               top: false,
@@ -129,7 +198,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, kControlHeight),
                         ),
-                        child: const Text('Bekor qilish'),
+                        child: Text(context.l10n.saCancel),
                       ),
                     ),
                     const SizedBox(width: kSpace3),
@@ -144,7 +213,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                             borderRadius: BorderRadius.circular(kRadiusMd),
                           ),
                         ),
-                        child: const Text("To'ladim"),
+                        child: Text(context.l10n.saPaymentIPaid),
                       ),
                     ),
                   ],
@@ -168,7 +237,7 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     // Matn o'zgarmagan — faqat umumiy `AppErrorState` ko'rinishiga o'tdi.
     return AppErrorState(
-      message: "To'lov sahifasini yuklab bo'lmadi: $message",
+      message: context.l10n.saPaymentPageLoadFailed(message),
       onRetry: onRetry,
     );
   }

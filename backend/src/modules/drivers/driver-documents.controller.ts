@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import {
   BadRequestException,
   Body,
@@ -10,7 +8,6 @@ import {
   Post,
   Query,
   Res,
-  UnsupportedMediaTypeException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -26,33 +23,22 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { randomUUID } from 'crypto';
-import {
-  DRIVER_DOCUMENTS_UPLOAD_DIR,
-  DriverDocumentsService,
-  UploadedDiskFile,
-} from './driver-documents.service';
+import { DriverDocumentsService } from './driver-documents.service';
+import { UploadedMemoryFile, driverUploadMulterOptions } from './driver-uploads';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-
-// Upload target — shared with DriverDocumentsService, which resolves files back
-// out of it for the authorized download endpoint.
-const UPLOAD_DIR = DRIVER_DOCUMENTS_UPLOAD_DIR;
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('drivers/documents')
 export class DriverDocumentsController {
   constructor(private readonly driverDocumentsService: DriverDocumentsService) {}
@@ -63,34 +49,13 @@ export class DriverDocumentsController {
   @ApiOperation({ summary: 'Upload a KYC document (license, passport, vehicle registration)' })
   @ApiResponse({ status: 201, description: 'Document uploaded, pending review' })
   @ApiResponse({ status: 400, description: 'Unsupported document type or file' })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOAD_DIR,
-        filename: (_req, file, callback) => {
-          const ext = path.extname(file.originalname).toLowerCase();
-          callback(null, `${randomUUID()}${ext}`);
-        },
-      }),
-      limits: { fileSize: MAX_FILE_SIZE_BYTES },
-      fileFilter: (_req, file, callback) => {
-        if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-          callback(
-            new UnsupportedMediaTypeException(
-              `Unsupported file type "${file.mimetype}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
-            ),
-            false,
-          );
-          return;
-        }
-        callback(null, true);
-      },
-    }),
-  )
+  // Yuklash sozlamasi (katalog, 10 MB chegara, MIME ro'yxati) `driver-uploads.ts`
+  // dan olinadi — davriy tekshiruv yuklamasi bilan bitta manba.
+  @UseInterceptors(FileInterceptor('file', driverUploadMulterOptions))
   async upload(
     @CurrentUser() user: User,
     @Body() dto: UploadDriverDocumentDto,
-    @UploadedFile() file: UploadedDiskFile,
+    @UploadedFile() file: UploadedMemoryFile,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded (expected multipart field "file")');
@@ -121,6 +86,15 @@ export class DriverDocumentsController {
     return this.driverDocumentsService.listForDriver(driverId);
   }
 
+  @Get('pending')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
+  @ApiOperation({ summary: 'KYC documents waiting for review, oldest first (manager/admin)' })
+  @ApiResponse({ status: 200, description: 'Pending documents with driver name and phone' })
+  async pending() {
+    return this.driverDocumentsService.listPending();
+  }
+
   @Get(':id/file')
   @Roles(UserRole.DRIVER, UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
@@ -147,11 +121,12 @@ export class DriverDocumentsController {
     res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
     // Personal identity documents: never cached by proxies or written to disk.
     res.setHeader('Cache-Control', 'private, no-store');
-    fs.createReadStream(file.absolutePath).pipe(res);
+    file.stream.pipe(res);
   }
 
   @Patch(':id/review')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
   @ApiOperation({ summary: 'Approve or reject an uploaded KYC document (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver document UUID' })
   @ApiResponse({ status: 200, description: 'Document review status updated' })

@@ -1,0 +1,12 @@
+{
+  "name": "angren-web-site",
+  "private": true,
+  "description": "Angren Taxi korporativ sayti — statik, bog'liqliksiz",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test build.test.mjs",
+    "preview": "node build.mjs && python3 -m http.server 4321 --bind 127.0.0.1 --directory dist"
+  }
+}

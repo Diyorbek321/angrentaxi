@@ -35,6 +35,7 @@ describe('NotificationsController', () => {
     expect(usersService.updateFcmToken).toHaveBeenCalledWith(
       'user-1',
       'a-real-looking-fcm-token',
+      user,
     );
   });
 
@@ -48,6 +49,7 @@ describe('NotificationsController', () => {
     expect(usersService.updateFcmToken).toHaveBeenCalledWith(
       'user-1',
       'another-fcm-token',
+      expect.objectContaining({ id: 'user-1' }),
     );
   });
 

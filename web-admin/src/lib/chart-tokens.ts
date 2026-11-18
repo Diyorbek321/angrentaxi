@@ -1,3 +1,5 @@
+import { t } from '@/locales';
+
 /**
  * Recharts SVG'ga rang MATN sifatida (`stroke`/`fill` proplari) beriladi —
  * u yerda Tailwind klassi ham, `rgb(var(--token))` ham ishlamaydi. Shuning
@@ -23,3 +25,15 @@ export const CHART_COLORS = {
   /** Xato / bekor qilingan seriya. */
   danger: '#E5484D',
 } as const;
+
+/**
+ * Chart geometry (PANEL-UI-KIT §6): bars never wider than 32px, and a series
+ * with fewer than 3 points is not a trend — show an empty state instead of
+ * one giant bar.
+ */
+export const CHART_BAR_MAX_PX = 32;
+export const CHART_MIN_POINTS = 3;
+export const CHART_HEIGHT_PX = 240;
+export function chartNotEnoughData(): string {
+  return t().dashboard.chart.notEnoughData;
+}

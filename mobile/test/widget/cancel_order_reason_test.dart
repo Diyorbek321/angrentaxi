@@ -138,9 +138,11 @@ void main() {
   testWidgets('tapping Bekor qilish opens a reason picker with all four options', (tester) async {
     await pumpHomeScreen(tester);
 
-    expect(find.text('Bekor qilish'), findsOneWidget);
-    await tester.tap(find.text('Bekor qilish'));
-    await tester.pump();
+    // Bekor qilish endi yozuvli, to'liq kenglikdagi tugma (ilgari amallar
+    // qatoridagi kichik ikonka edi — asoschi uni topa olmadi).
+    expect(find.text('Safarni bekor qilish'), findsOneWidget);
+    await tester.tap(find.text('Safarni bekor qilish'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Bekor qilish sababi'), findsOneWidget);
     expect(find.text('Juda uzoq kutdim'), findsOneWidget);
@@ -156,8 +158,8 @@ void main() {
 
     await pumpHomeScreen(tester);
 
-    await tester.tap(find.text('Bekor qilish'));
-    await tester.pump();
+    await tester.tap(find.text('Safarni bekor qilish'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Narx juda qimmat'));
     await tester.pump();
@@ -188,8 +190,8 @@ void main() {
 
     await pumpHomeScreen(tester);
 
-    await tester.tap(find.text('Bekor qilish'));
-    await tester.pump();
+    await tester.tap(find.text('Safarni bekor qilish'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Boshqa sabab'));
     await tester.pump();

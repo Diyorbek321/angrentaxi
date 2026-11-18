@@ -23,6 +23,11 @@ export class UpdateStoreDto {
   @MaxLength(300)
   address?: string;
 
+  @ApiPropertyOptional({ example: '123456789', description: "STIR (INN), 9 raqam — fiskal chekdagi komitent" })
+  @IsOptional()
+  @Matches(/^\d{9}$/, { message: "STIR 9 ta raqamdan iborat bo'lishi kerak" })
+  tin?: string;
+
   @ApiPropertyOptional({ example: '08:00' })
   @IsOptional()
   @IsString()

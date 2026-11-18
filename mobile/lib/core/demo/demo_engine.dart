@@ -18,11 +18,27 @@ class DemoEngine {
   Map<String, dynamic>? _driverOrder;
   int _orderSeq = 0;
 
+  /// Oxirgi narx bahosi — buyurtma narxi ekranda ko'rsatilgan bahodan
+  /// farq qilmasin (haqiqiy server ham bahoni buyurtmaga qo'yadi).
+  double? _lastEstimate;
+
+  /// Demo hamyon qoldig'i — chaqim undan yechiladi, shunda ketma-ket
+  /// berilgan chaqimlar ko'rsatuvda haqiqiy pulday kamayadi.
+  double _walletBalance = 120000;
+
+  /// Buyurtma bo'yicha berilgan chaqim. Chek shu summani ko'rsatadi —
+  /// chaqim va chek ikkita alohida yolg'on emas, bitta holat bo'lib qoladi.
+  final Map<String, double> _tips = {};
+
   SocketService get _socket => sl<SocketService>();
 
   /// Routes a REST call to canned data. Returns the full response body the app
   /// expects (`{ "data": ... }`). Side effects (timelines) are started here.
-  Map<String, dynamic> handle(String method, String path, dynamic data) {
+  Map<String, dynamic> handle(String method, String rawPath, dynamic data) {
+    // Ba'zi so'rovlar so'rov qatorini yo'lga qo'shib yuboradi
+    // (`/tariffs?serviceType=taxi`) — `endsWith` tekshiruvlari ishlashi uchun
+    // u olib tashlanadi.
+    final path = Uri.parse(rawPath).path;
     final body = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
     debugPrint('[Demo] $method $path');
 
@@ -59,12 +75,29 @@ class DemoEngine {
     }
 
     // ---- Passenger orders ----
-    if (path.endsWith('/orders/estimate')) {
+    // Haqiqiy `POST /orders/calculate-price` javobi shaklida (`price`).
+    if (path.endsWith('/orders/calculate-price')) {
       const distanceKm = 4.2;
-      final baseFare = (body['baseFare'] as num?)?.toDouble() ?? 8000;
-      final perKm = (body['perKmRate'] as num?)?.toDouble() ?? 2500;
-      final price = (baseFare + perKm * distanceKm).clamp(8000, 200000);
-      return _ok({'estimatedPrice': price, 'distanceKm': distanceKm, 'durationMin': 14});
+      final tariffs = DemoData.tariffs();
+      final tariff = tariffs.firstWhere(
+        (t) => t['id'] == body['tariffId'],
+        orElse: () => tariffs.first,
+      );
+      final base = (tariff['basePrice'] as num).toDouble();
+      final perKm = (tariff['pricePerKm'] as num).toDouble();
+      final min = (tariff['minPrice'] as num).toDouble();
+      // So'mni minglikka yaxlitlaymiz — ekranda "12 560" emas, "13 000".
+      final raw = (base + perKm * distanceKm).clamp(min, 200000);
+      final price = (raw / 1000).ceil() * 1000.0;
+      _lastEstimate = price;
+      return _ok({
+        'price': price,
+        'tariffId': tariff['id'],
+        'distanceKm': distanceKm,
+        'durationMin': 14,
+        'surgeMultiplier': 1.0,
+        'optionsFare': 0,
+      });
     }
     if (path.endsWith('/orders') && method == 'POST') {
       final order = _buildPassengerOrder(body);
@@ -77,9 +110,34 @@ class DemoEngine {
       _passengerOrder = null;
       return _ok({'cancelled': true});
     }
+    // ---- Chek va chaqim ----
+    //
+    // NEGA ALOHIDA: bularsiz ikkala yo'l ham pastdagi "bo'sh muvaffaqiyat"
+    // zaxirasiga tushardi — chek 0 so'mlik bo'sh hujjat bo'lib chiqar,
+    // chaqim esa hech qayerga yozilmasdan "yuborildi" deb ko'rsatilardi.
+    if (path.contains('/orders/') && path.endsWith('/receipt')) {
+      final id = _orderIdFrom(path, '/receipt');
+      return _ok(DemoData.receipt(
+        _findOrder(id),
+        tipAmount: _tips[id] ?? 0,
+      ));
+    }
+    if (path.contains('/orders/') && path.endsWith('/tip')) {
+      final id = _orderIdFrom(path, '/tip');
+      final amount = (body['amount'] as num?)?.toDouble() ?? 0;
+      _tips[id] = (_tips[id] ?? 0) + amount;
+      _walletBalance -= amount;
+      return _ok({'tipAmount': amount, 'walletBalance': _walletBalance});
+    }
+
     if (path.endsWith('/orders/history')) {
-      // ?status=active → none active at start (clean home screen)
-      return _okList(DemoData.orderHistory());
+      // Haqiqiy API: `{orders, total, page, limit}` (ham yo'lovchi, ham
+      // haydovchi shu yo'lni ishlatadi). Boshida faol buyurtma yo'q.
+      final orders = DemoData.orderHistory();
+      return _ok({'orders': orders, 'total': orders.length, 'page': 1, 'limit': 20});
+    }
+    if (path.endsWith('/orders/scheduled')) {
+      return _okList(const []);
     }
 
     // ---- Ratings / promo ----
@@ -98,8 +156,18 @@ class DemoEngine {
     }
 
     // ---- Driver ----
-    if (path.endsWith('/drivers/profile')) {
+    if (path.endsWith('/drivers/profile') || path.endsWith('/drivers/me')) {
       return _ok(DemoData.driver());
+    }
+    // Hozirgi API: `PATCH /drivers/status {isOnline}`. Eski
+    // `/drivers/online|offline` yo'llari ham qoldiriladi.
+    if (path.endsWith('/drivers/status')) {
+      if (body['isOnline'] == true) {
+        _startDriverOffer();
+      } else {
+        _cancelTimers();
+      }
+      return _ok({'isOnline': body['isOnline'] == true});
     }
     if (path.endsWith('/drivers/online')) {
       _startDriverOffer();
@@ -112,40 +180,88 @@ class DemoEngine {
     if (path.endsWith('/drivers/active-order')) {
       return {'data': _driverOrder};
     }
-    if (path.endsWith('/drivers/earnings')) {
-      return _ok({'today': 184000, 'week': 1240000, 'trips': 12});
+    // Ilova `GET /orders/earnings` (bosh ekran) va `.../breakdown` (Daromad
+    // ekrani) ni so'raydi. Raqamlar o'zaro mos: komissiya 10%, soliq 1%,
+    // net = gross − komissiya − soliq.
+    if (path.endsWith('/orders/earnings/breakdown')) {
+      return _ok({
+        'today': DemoData.earningsPeriod(gross: 205000, trips: 11, tips: 5000),
+        'week': DemoData.earningsPeriod(gross: 1380000, trips: 74, tips: 21000),
+        'month': DemoData.earningsPeriod(gross: 5650000, trips: 302, tips: 87000),
+      });
+    }
+    if (path.endsWith('/orders/earnings')) {
+      final today = DemoData.earningsPeriod(gross: 205000, trips: 11, tips: 5000);
+      return _ok({'today': today['netWithTips'], 'week': 1249200, 'trips': 11});
     }
     if (path.endsWith('/drivers/orders/history')) {
       return _okList(DemoData.orderHistory());
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/accept')) {
+    if (path.contains('/orders/') && path.endsWith('/accept')) {
       _driverOrder = _updateDriverStatus('driver_assigned');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/decline')) {
+    if (path.contains('/orders/') && path.endsWith('/decline')) {
       return _ok({'declined': true});
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/arrived')) {
+    if (path.contains('/orders/') && path.endsWith('/arrived')) {
       _driverOrder = _updateDriverStatus('driver_arrived');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/start')) {
+    if (path.contains('/orders/') && path.endsWith('/start')) {
       _driverOrder = _updateDriverStatus('in_progress');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/complete')) {
+    if (path.contains('/orders/') && path.endsWith('/complete')) {
       final completed = _updateDriverStatus('completed');
       completed['actualPrice'] = completed['estimatedPrice'];
       _driverOrder = null;
       return _ok(completed);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/location')) {
+    if (path.contains('/orders/') && path.endsWith('/location')) {
       return _ok({});
     }
 
     // ---- Notifications ----
     if (path.endsWith('/notifications/register-token')) {
       return _ok({'registered': true});
+    }
+
+    // ---- Super-app: hamyon, ovqat, market, reklama ----
+    if (path.endsWith('/payments/wallet')) {
+      return _ok({'userId': DemoData.passengerUserId, 'balance': _walletBalance});
+    }
+    if (path.endsWith('/food/restaurants')) {
+      return _okList(DemoData.restaurants());
+    }
+    if (path.contains('/food/restaurants/')) {
+      return _ok(DemoData.restaurantDetail(path.split('/').last));
+    }
+    if (path.endsWith('/market/stores')) {
+      return _okList([DemoData.store()]);
+    }
+    if (path.contains('/market/stores/')) {
+      return _ok(DemoData.storeDetail());
+    }
+    if (path.endsWith('/market/trending') || path.endsWith('/market/products/search')) {
+      return _ok(DemoData.productFeed());
+    }
+    if (path.endsWith('/food/orders') ||
+        path.endsWith('/market/orders') ||
+        path.endsWith('/ads/active') ||
+        path.endsWith('/users/favorite-addresses')) {
+      return _okList(const []);
+    }
+
+    if (path.endsWith('/driver-bonus-rules/me/progress')) {
+      return _okList(const []);
+    }
+    // `GET /orders/:id` — faol buyurtmani yangilash (yo'lovchi yoki haydovchi).
+    if (method == 'GET' && RegExp(r'/orders/[^/]+$').hasMatch(path)) {
+      final id = path.split('/').last;
+      final order = [_passengerOrder, _driverOrder]
+          .firstWhere((o) => o?['id'] == id, orElse: () => null);
+      if (order != null) return _ok(order);
     }
 
     // Fallback: empty success
@@ -172,7 +288,7 @@ class DemoEngine {
         'lng': (dropoff?['lng'] as num?)?.toDouble() ?? DemoData.dropoffLng,
       },
       'status': 'searching',
-      'estimatedPrice': (body['estimatedPrice'] as num?)?.toDouble() ?? 18500,
+      'estimatedPrice': (body['estimatedPrice'] as num?)?.toDouble() ?? _lastEstimate ?? 18500,
       'createdAt': DateTime.now().toIso8601String(),
       'driver': null,
       'tariffId': body['tariffId'],
@@ -189,8 +305,11 @@ class DemoEngine {
     final dLat = dropoff['lat'] as double;
     final dLng = dropoff['lng'] as double;
 
-    // Driver found + assigned.
+    // Driver found + assigned. Saqlangan buyurtma ham yangilanadi: ilova
+    // qayta ulanganda `GET /orders/:id` bilan holatni tiklaydi va eski
+    // "searching" ni olib, ekranni orqaga qaytarardi.
     _schedule(2500, () {
+      _setPassengerStatus('accepted', withDriver: true);
       _socket.simulateIncoming(SocketEvents.orderAccepted, {'driver': DemoData.driver()});
     });
 
@@ -207,11 +326,13 @@ class DemoEngine {
 
     // Arrived at pickup.
     _schedule(9200, () {
+      _setPassengerStatus('arrived');
       _socket.simulateIncoming(SocketEvents.orderArrived, {'message': 'Your driver has arrived'});
     });
 
     // Trip starts, drive to destination.
     _schedule(12000, () {
+      _setPassengerStatus('in_progress');
       _socket.simulateIncoming(SocketEvents.orderInProgress, {'message': 'Trip started'});
     });
     _animate(
@@ -278,9 +399,27 @@ class DemoEngine {
         'tariffId': 'tariff-komfort',
         'distanceKm': 4.2,
         'durationMin': 14,
+        'tripDistanceKm': 4.2,
+        'tripDurationMin': 14,
+        'passenger': {
+          'firstName': 'Aziz',
+          'lastName': 'Karimov',
+          'phone': '+998901234567',
+        },
       };
       _socket.simulateIncoming(SocketEvents.newOrderOffer, _driverOrder);
     });
+  }
+
+  /// Yo'lovchining saqlangan demo buyurtmasi holatini yangilaydi.
+  void _setPassengerStatus(String status, {bool withDriver = false}) {
+    final order = _passengerOrder;
+    if (order == null) return;
+    _passengerOrder = {
+      ...order,
+      'status': status,
+      if (withDriver) 'driver': DemoData.driver(),
+    };
   }
 
   Map<String, dynamic> _updateDriverStatus(String status) {
@@ -291,6 +430,26 @@ class DemoEngine {
   }
 
   // ---------- helpers ----------
+
+  /// `/orders/<id>/receipt` dan `<id>` ni ajratadi.
+  String _orderIdFrom(String path, String suffix) {
+    final withoutSuffix = path.substring(0, path.length - suffix.length);
+    return withoutSuffix.split('/').last;
+  }
+
+  /// Chek uchun buyurtma: avval jonli safar, keyin tarix. Topilmasa — eng
+  /// so'nggi tarix yozuvi, chunki demo'da "yo'q buyurtma" xato ekrani emas,
+  /// mahsulot buzuq degan taassurot qoldiradi.
+  Map<String, dynamic> _findOrder(String id) {
+    final live = _passengerOrder;
+    if (live != null && live['id'] == id) return live;
+
+    final history = DemoData.orderHistory();
+    for (final order in history) {
+      if (order['id'] == id) return order;
+    }
+    return history.first;
+  }
 
   Map<String, dynamic> _ok(Map<String, dynamic> data) => {'success': true, 'data': data};
   Map<String, dynamic> _okList(List<Map<String, dynamic>> data) =>
@@ -311,5 +470,9 @@ class DemoEngine {
     _cancelTimers();
     _passengerOrder = null;
     _driverOrder = null;
+    // Chiqishdan keyin chaqim va hamyon ham boshlang'ich holatga qaytadi,
+    // aks holda keyingi ko'rsatuv oldingi seansning pulidan boshlanardi.
+    _tips.clear();
+    _walletBalance = 120000;
   }
 }

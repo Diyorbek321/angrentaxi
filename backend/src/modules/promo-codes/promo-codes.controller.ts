@@ -14,7 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { PromoCodesService, ValidatePromoResult } from './promo-codes.service';
+import { PromoCheckResult, PromoCodesService } from './promo-codes.service';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { ValidatePromoDto } from './dto/validate-promo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,7 +23,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Permission, User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { PromoCode } from '../../database/entities/promo_code.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
@@ -35,15 +35,18 @@ export class PromoCodesController {
   constructor(private readonly promoCodesService: PromoCodesService) {}
 
   @Post('validate')
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: 'Validate a promo code against an order amount' })
   @ApiResponse({ status: 200, description: 'Promo code is valid, returns discount info' })
   @ApiResponse({ status: 400, description: 'Promo code is invalid or conditions not met' })
   async validatePromo(
     @CurrentUser() user: User,
     @Body() dto: ValidatePromoDto,
-  ): Promise<ValidatePromoResult> {
-    return this.promoCodesService.validate(dto.code, user.id, dto.orderAmount);
+  ): Promise<PromoCheckResult> {
+    return this.promoCodesService.describe(dto.code, user.id, {
+      serviceType: dto.serviceType,
+      amount: dto.amount ?? dto.orderAmount ?? null,
+    });
   }
 
   @Get('active')

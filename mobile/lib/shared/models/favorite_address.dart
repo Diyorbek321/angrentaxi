@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,7 @@ class FavoriteAddress extends Equatable {
     required this.address,
     required this.lat,
     required this.lng,
+    this.addressDetails,
   });
 
   final String id;
@@ -21,6 +23,10 @@ class FavoriteAddress extends Equatable {
   final double lat;
   final double lng;
 
+  /// Podyezd/qavat/... (spec v5 §6) — checkout'da avtomatik to'ldiriladi.
+  /// Eski server bermaydi — `null`.
+  final AddressDetails? addressDetails;
+
   factory FavoriteAddress.fromJson(Map<String, dynamic> json) {
     return FavoriteAddress(
       id: json['id'] as String,
@@ -28,6 +34,7 @@ class FavoriteAddress extends Equatable {
       address: (json['address'] as String?) ?? '',
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
+      addressDetails: AddressDetails.tryParse(json['addressDetails']),
     );
   }
 
@@ -37,10 +44,11 @@ class FavoriteAddress extends Equatable {
         'address': address,
         'lat': lat,
         'lng': lng,
+        if (addressDetails != null) 'addressDetails': addressDetails!.toJson(),
       };
 
   @override
-  List<Object?> get props => [id, label, address, lat, lng];
+  List<Object?> get props => [id, label, address, lat, lng, addressDetails];
 }
 
 /// Icon/color picked from the label so common favorites ("Uy"/"Ish") get a

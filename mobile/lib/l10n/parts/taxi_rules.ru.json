@@ -1,0 +1,20 @@
+{
+  "paxCancelFreeUntil": "Отмена бесплатна до {time}.",
+  "paxCancelFeeWarning": "Водитель уже потратил время: при отмене штраф {fee} — он полностью уходит водителю. Если в кошельке не хватит, останется долг.",
+  "paxCancelWithFee": "Да, заплачу {fee}",
+  "paxInterruptedTitle": "Поездка прервана",
+  "paxInterruptedBody": "Поездка завершена по цене до этой точки. Вызвать новое такси отсюда?",
+  "paxInterruptedNewSearch": "Новое такси отсюда",
+  "paxInterruptedClose": "Закрыть",
+  "drvNoShowFeeNote": "С пассажира будет взят штраф, он полностью переводится вам. Время ожидания проверяет сервер.",
+  "drvInterruptAction": "Поездка прервана (ДТП, поломка)",
+  "drvInterruptTitle": "Поездка прервана",
+  "drvInterruptBody": "Поездка завершится по цене до этой точки, пассажиру предложат новое такси отсюда.",
+  "drvInterruptAccident": "ДТП",
+  "drvInterruptBreakdown": "Поломка машины",
+  "drvInterruptOther": "Другая причина",
+  "drvInterruptNoteHint": "Комментарий (необязательно)",
+  "drvInterruptConfirm": "Завершить поездку",
+  "drvInterruptDone": "Поездка прервана. Списано: {price}",
+  "drvInterruptFailed": "Не удалось завершить поездку. Позвоните диспетчеру."
+}

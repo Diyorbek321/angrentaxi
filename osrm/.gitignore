@@ -1,0 +1,3 @@
+# Yig'ilgan OSRM grafi va OSM ekstrakti — repoga tushmaydi (bir necha GB).
+# scripts/osrm-prepare.sh ularni qaytadan yaratadi.
+data/

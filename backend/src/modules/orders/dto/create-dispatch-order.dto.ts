@@ -1,7 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsIn,
   IsEnum,
+  IsISO8601,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -9,8 +16,11 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import { PaymentMethod } from '../../../database/entities/order.entity';
+import { PaymentMethod, ServiceType } from '../../../database/entities/order.entity';
+import { WaypointDto } from './create-order.dto';
+import { TRIP_OPTION_VALUES, TripOption } from '../trip-options';
 
 export class CreateDispatchOrderDto {
   @ApiProperty({ example: '+998901234569', description: 'Passenger phone number' })
@@ -74,4 +84,62 @@ export class CreateDispatchOrderDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  // The four fields below were missing, so a call-centre operator could not
+  // take a multi-stop ride, a cargo job, or apply a promo code — the dispatch
+  // form silently produced a plain point-to-point taxi order instead.
+
+  @ApiPropertyOptional({
+    type: [WaypointDto],
+    description: 'Intermediate stops between pickup and dropoff, in visit order (max 5)',
+    example: [{ address: 'Angren bozori', lat: 40.098, lng: 70.944 }],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => WaypointDto)
+  waypoints?: WaypointDto[];
+
+  @ApiPropertyOptional({ enum: ServiceType, default: ServiceType.TAXI })
+  @IsOptional()
+  @IsEnum(ServiceType)
+  serviceType?: ServiceType;
+
+  @ApiPropertyOptional({
+    description: 'Vertical-specific payload, e.g. cargo: { weightKg, loaders, cargoNote }',
+    example: { weightKg: 300, loaders: 2, cargoNote: 'Mebel' },
+  })
+  @IsOptional()
+  @IsObject()
+  details?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ enum: TripOption, isArray: true, example: ['child_seat'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(TRIP_OPTION_VALUES.length)
+  @IsIn(TRIP_OPTION_VALUES, { each: true })
+  options?: TripOption[];
+
+  @ApiPropertyOptional({ example: 'ANGREN10', description: 'Promo code to apply, if any' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  promoCode?: string;
+
+  // Call-centre operatori ham rejalashtirilgan safarni qabul qila olishi
+  // kerak. `createForDispatch` baribir `create()` ga delegate qiladi, ya'ni
+  // validatsiya va narx qotirish bir xil yo'ldan o'tadi.
+  //
+  // ⚠️ `forbidNonWhitelisted: true` sababli bu maydonni DTO ga qo'shmasdan
+  // yuborish `400 property scheduledAt should not exist` beradi — shuning
+  // uchun IKKALA DTO ham yangilanishi shart.
+  @ApiPropertyOptional({
+    example: '2026-08-20T03:00:00.000Z',
+    description: "Rejalashtirilgan olib ketish vaqti (ISO-8601, UTC)",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  scheduledAt?: string;
 }

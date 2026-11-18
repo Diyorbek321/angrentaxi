@@ -40,6 +40,16 @@ export class SupportService {
     }
   }
 
+  /**
+   * Public, id-based access check for callers that hold only a thread id —
+   * currently the realtime gateway, which must apply the same rule before
+   * joining a socket to `support:thread:<id>` as the REST reads do.
+   */
+  async assertCanAccessThread(threadId: string, user: User): Promise<void> {
+    const thread = await this.findByIdOrThrow(threadId);
+    this.assertCanAccess(thread, user);
+  }
+
   async getOrCreateForUser(user: User): Promise<SupportThread> {
     const existing = await this.threadRepository.findOne({ where: { userId: user.id } });
     if (existing) {

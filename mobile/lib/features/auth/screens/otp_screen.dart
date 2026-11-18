@@ -1,8 +1,10 @@
 import 'dart:async';
-
 import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/platform/secure_screen.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
@@ -29,11 +31,14 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
+    // SMS kodi skrinshot va "so'nggi ilovalar" rasmiga tushmasin.
+    SecureScreen.instance.acquire();
     _startCountdown();
   }
 
   @override
   void dispose() {
+    SecureScreen.instance.release();
     _timer?.cancel();
     _otpController.dispose();
     super.dispose();
@@ -55,8 +60,9 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _onVerify() async {
     if (_otpValue.length != 6) {
+      AppHaptics.warning();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('6 ta raqamli kodni kiriting')),
+        SnackBar(content: Text(context.l10n.shOtpEnterSixDigits)),
       );
       return;
     }
@@ -66,7 +72,13 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (!mounted) return;
     if (success) {
+      // Kirish muvaffaqiyatli — ikki zarbali ko'tariluvchi naqsh.
+      AppHaptics.success();
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+    } else {
+      // Noto'g'ri kod. Xato haptikasi ekranga qaramasdan ham tushunarli —
+      // foydalanuvchi ko'pincha klaviaturaga qarab turadi.
+      AppHaptics.error();
     }
   }
 
@@ -77,6 +89,7 @@ class _OtpScreenState extends State<OtpScreen> {
     await auth.sendOtp(auth.phone!);
     if (!mounted) return;
     if (auth.state == AuthState.otpSent) {
+      AppHaptics.tap();
       _otpController.clear();
       _otpValue = '';
       _startCountdown();
@@ -87,10 +100,10 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tasdiqlash'),
+        title: Text(context.l10n.shOtpTitle),
         leading: Semantics(
           button: true,
-          label: 'Orqaga',
+          label: context.l10n.shBack,
           child: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
@@ -130,7 +143,7 @@ class _OtpScreenState extends State<OtpScreen> {
               Consumer<AuthProvider>(
                 builder: (context, auth, _) {
                   return AppButton(
-                    label: 'Tasdiqlash',
+                    label: context.l10n.shConfirm,
                     onPressed: _otpValue.length == 6 ? _onVerify : null,
                     isLoading: auth.state == AuthState.loading,
                     isEnabled: _otpValue.length == 6,
@@ -151,20 +164,22 @@ class _OtpScreenState extends State<OtpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'SMS kod kiriting',
-          style: TextStyle(
+        Text(
+          context.l10n.shOtpHeading,
+          style: const TextStyle(
             fontSize: kFontH1,
             fontWeight: FontWeight.w800,
             color: kInk,
           ),
         ),
         const SizedBox(height: kSpace2),
-        RichText(
-          text: TextSpan(
+        // `Text.rich`, `RichText` emas: u ilova shriftini va tizimdagi matn
+        // kattalashtirishni meros oladi.
+        Text.rich(
+          TextSpan(
             style: const TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
             children: [
-              const TextSpan(text: 'Kod '),
+              TextSpan(text: context.l10n.shOtpSentPrefix),
               TextSpan(
                 text: Formatters.formatPhone(phone),
                 style: const TextStyle(
@@ -172,7 +187,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const TextSpan(text: ' raqamiga yuborildi'),
+              TextSpan(text: context.l10n.shOtpSentSuffix),
             ],
           ),
         ),
@@ -202,6 +217,12 @@ class _OtpScreenState extends State<OtpScreen> {
         inactiveColor: kSurface2,
       ),
       enableActiveFill: true,
+      // Katakchalar ORTIDAGI yashirin matn maydoni mavzudan `filled` fonni
+      // olib, 6 katakni birlashtiruvchi kulrang yo'lak chizardi.
+      backgroundColor: Colors.transparent,
+      // Controller'ni bu ekran yaratadi va `dispose` da O'ZI yopadi. Paket
+      // ham yopsa ikki marta `dispose` — debug'da qizil xato.
+      autoDisposeControllers: false,
       onChanged: (value) {
         setState(() => _otpValue = value);
         if (value.length == 6) {
@@ -223,9 +244,9 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             child: TextButton(
               onPressed: auth.state != AuthState.loading ? _onResend : null,
-              child: const Text(
-                'Kodni qayta yuborish',
-                style: TextStyle(
+              child: Text(
+                context.l10n.shOtpResend,
+                style: const TextStyle(
                   // Yorug' fondagi link — kPrimary (5.38:1).
                   color: kPrimary,
                   fontSize: kFontBodyLg,
@@ -239,7 +260,7 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     return Text(
-      'Qayta yuborish: $_secondsLeft s',
+      context.l10n.shOtpResendIn(_secondsLeft),
       style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
     );
   }

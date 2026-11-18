@@ -1,51 +1,62 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { clsx } from 'clsx';
+import { cn } from './cn';
 import { Button } from './Button';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface ErrorStateProps {
   title?: string;
-  /** So'rovdan kelgan xabar — yashirilmaydi, ko'rsatiladi. */
+  /** Raw message from the failed request — shown verbatim, never swallowed. */
   message?: string | null;
   onRetry?: () => void | Promise<void>;
-  compact?: boolean;
+  /** Shows a spinner on the retry button. */
+  retrying?: boolean;
   className?: string;
+  compact?: boolean;
 }
 
 /**
- * `role="alert"` — xato paydo bo'lganda skrinrider uni darhol o'qiydi.
- * Xato faqat qizil rang bilan emas, ikonka va matn bilan ham beriladi.
+ * Nothing to show because loading failed: what broke + "Qayta urinish".
+ * If last good data exists, keep it on screen and use RetryBanner instead.
  */
 export function ErrorState({
-  title = "Ma'lumotni yuklab bo'lmadi",
+  title,
   message,
   onRetry,
-  compact = false,
+  retrying = false,
   className,
+  compact = false,
 }: ErrorStateProps) {
   return (
     <div
       role="alert"
-      className={clsx(
-        'flex flex-col items-center justify-center text-center gap-3',
+      className={cn(
+        'flex flex-col items-center justify-center text-center gap-3 px-4',
         compact ? 'py-8' : 'py-14',
         className
       )}
     >
       <div
         aria-hidden
-        className="h-12 w-12 rounded-ds-md bg-danger-tint text-danger-deep dark:text-danger-light flex items-center justify-center"
+        className="h-10 w-10 rounded-full border border-danger/30 bg-danger-tint text-danger flex items-center justify-center"
       >
-        <AlertTriangle size={22} />
+        <AlertTriangle size={18} />
       </div>
       <div className="max-w-md">
-        <p className="text-h3 text-ink">{title}</p>
-        {message && <p className="text-body text-muted mt-1 break-words">{message}</p>}
+        <p className="text-sm font-semibold text-ink">{title ?? kitT().errorState.title}</p>
+        {message && <p className="text-[13px] text-muted mt-1 break-words">{message}</p>}
       </div>
       {onRetry && (
-        <Button variant="secondary" size="md" onClick={onRetry} leftIcon={<RefreshCw size={14} />}>
-          Qayta urinish
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void onRetry()}
+          isLoading={retrying}
+          leftIcon={<RefreshCw size={13} aria-hidden />}
+        >
+          {kitT().common.retry}
         </Button>
       )}
     </div>

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -14,6 +15,7 @@ import {
 import { OrdersService } from '../orders/orders.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { ReportSosDto } from './dto/report-sos.dto';
+import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
 
 // Upper bound on the active-alert feed (see listActive). Active SOS alerts are
 // an exception queue, not a history: a healthy city has single digits open at a
@@ -30,6 +32,7 @@ export class SafetyService {
     private readonly sosAlertRepository: Repository<SosAlert>,
     private readonly ordersService: OrdersService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   /**
@@ -76,18 +79,61 @@ export class SafetyService {
     return saved;
   }
 
-  /** Admin/manager only — marks an alert resolved. Guarded at the controller by RolesGuard. */
-  async resolveSos(alertId: string): Promise<SosAlert> {
+  /**
+   * Admin/manager only — yopadi. Izoh MAJBURIY va kim yopgani yoziladi
+   * (INCIDENT-POLICY §4); holat, izoh va audit yozuvi BITTA tranzaksiyada.
+   * Shartli UPDATE: ikki dispetcher bir vaqtda yopsa, ikkinchisi 409 oladi
+   * va ikkinchi audit yozuvi paydo bo'lmaydi. Boshqa ochiq panellar
+   * `sos:resolved` bilan ovozni o'chiradi.
+   */
+  async resolveSos(alertId: string, actorUserId: string, note: string): Promise<SosAlert> {
     const alert = await this.sosAlertRepository.findOne({ where: { id: alertId } });
 
     if (!alert) {
       throw new NotFoundException(`SOS alert ${alertId} not found`);
     }
+    if (alert.status === SosAlertStatus.RESOLVED) {
+      throw new ConflictException('SOS allaqachon yopilgan');
+    }
 
-    alert.status = SosAlertStatus.RESOLVED;
-    alert.resolvedAt = new Date();
+    const resolvedAt = new Date();
+    const resolutionNote = note.trim().slice(0, 500);
+    await this.sosAlertRepository.manager.transaction(async (manager) => {
+      const result = await manager.update(
+        SosAlert,
+        { id: alertId, status: SosAlertStatus.ACTIVE },
+        { status: SosAlertStatus.RESOLVED, resolvedAt, resolvedBy: actorUserId, resolutionNote },
+      );
+      if (!result.affected) {
+        throw new ConflictException('SOS allaqachon yopilgan');
+      }
+      await this.auditLog.record(
+        {
+          actorUserId,
+          action: AUDIT_ACTIONS.sosResolve,
+          targetType: 'sos_alert',
+          targetId: alertId,
+          note: resolutionNote,
+          metadata: { orderId: alert.orderId },
+        },
+        manager,
+      );
+    });
 
-    return this.sosAlertRepository.save(alert);
+    const resolved: SosAlert = {
+      ...alert,
+      status: SosAlertStatus.RESOLVED,
+      resolvedAt,
+      resolvedBy: actorUserId,
+      resolutionNote,
+    };
+    this.realtimeGateway.emitToManagers('sos:resolved', {
+      id: alertId,
+      orderId: alert.orderId,
+      resolvedBy: actorUserId,
+      resolvedAt: resolvedAt.toISOString(),
+    });
+    return resolved;
   }
 
   /**

@@ -1,5 +1,7 @@
 import { MatchingService } from './matching.service';
-import { OrderStatus } from '../../database/entities/order.entity';
+import { OrderStatus, ServiceType } from '../../database/entities/order.entity';
+import { VehicleType } from '../../database/entities/tariff.entity';
+import { driverMatchesCapabilities } from '../drivers/driver-capabilities';
 
 describe('MatchingService (Redis-backed queue)', () => {
   let service: MatchingService;
@@ -8,9 +10,10 @@ describe('MatchingService (Redis-backed queue)', () => {
     update: jest.Mock;
     query: jest.Mock;
   };
-  let driversService: { getNearbyDrivers: jest.Mock };
+  let driversService: { getNearbyDrivers: jest.Mock; isStillOfferable: jest.Mock };
+  let osrmService: { durationsTo: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
-  let notificationsService: { notifyNewOrderOffer: jest.Mock };
+  let notificationsService: { notifyNewOrderOffer: jest.Mock; notifyOrderCancelled: jest.Mock };
   let usersService: { findById: jest.Mock };
   let tariffsService: { findById: jest.Mock };
   let redis: {
@@ -19,6 +22,7 @@ describe('MatchingService (Redis-backed queue)', () => {
     get: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
+    eval: jest.Mock;
     sadd: jest.Mock;
     srem: jest.Mock;
     smembers: jest.Mock;
@@ -43,6 +47,7 @@ describe('MatchingService (Redis-backed queue)', () => {
       estimatedPrice: 10000,
       createdAt: new Date(),
       paymentMethod: 'cash',
+      serviceType: ServiceType.TAXI,
       ...overrides,
     };
   }
@@ -54,19 +59,31 @@ describe('MatchingService (Redis-backed queue)', () => {
   beforeEach(() => {
     orderRepository = {
       findOne: jest.fn().mockResolvedValue(makeOrder()),
-      update: jest.fn().mockResolvedValue(undefined),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
       query: jest
         .fn()
         .mockResolvedValueOnce([{ lat: 40.1, lng: 69.1 }]) // startSearch's pickup coords query
         .mockResolvedValue([coordsRow]), // subsequent offerToDriver coords queries
     };
-    driversService = { getNearbyDrivers: jest.fn().mockResolvedValue([]) };
+    driversService = {
+      getNearbyDrivers: jest.fn().mockResolvedValue([]),
+      isStillOfferable: jest.fn().mockResolvedValue(true),
+    };
     realtimeGateway = { emitToUser: jest.fn() };
-    notificationsService = { notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined) };
+    notificationsService = {
+      notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined),
+      notifyOrderCancelled: jest.fn().mockResolvedValue(undefined),
+    };
     usersService = { findById: jest.fn().mockResolvedValue({ id: 'u', fcmToken: null }) };
     tariffsService = {
-      findById: jest.fn().mockResolvedValue({ id: 'tariff-1', tier: 1 }),
+      // Taksi tariflarida `vehicleType` null — transport turi bo'yicha filtr
+      // qo'llanmaydi (cargo testlari buni o'z blokida almashtiradi).
+      findById: jest.fn().mockResolvedValue({ id: 'tariff-1', tier: 1, vehicleType: null }),
     };
+    // Routing is an accuracy layer, not a dependency of dispatch: returning
+    // null here is the "router unavailable" path, so these tests keep
+    // asserting the distance-ordered fallback.
+    osrmService = { durationsTo: jest.fn().mockResolvedValue(null) };
 
     const store = new Map<string, string>();
     const activeSet = new Set<string>();
@@ -74,7 +91,9 @@ describe('MatchingService (Redis-backed queue)', () => {
       store,
       activeSet,
       get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
-      set: jest.fn((key: string, value: string) => {
+      // Honours NX like real Redis: the per-driver offer hold relies on it.
+      set: jest.fn((key: string, value: string, ...flags: unknown[]) => {
+        if (flags.includes('NX') && store.has(key)) return Promise.resolve(null);
         store.set(key, value);
         return Promise.resolve('OK');
       }),
@@ -82,6 +101,10 @@ describe('MatchingService (Redis-backed queue)', () => {
         store.delete(key);
         return Promise.resolve(1);
       }),
+      // Order-lock release: atomic compare-and-delete script.
+      eval: jest.fn((_script: string, _n: number, key: string, token: string) =>
+        Promise.resolve(store.get(key) === token && store.delete(key) ? 1 : 0),
+      ),
       sadd: jest.fn((_key: string, member: string) => {
         activeSet.add(member);
         return Promise.resolve(1);
@@ -100,11 +123,39 @@ describe('MatchingService (Redis-backed queue)', () => {
       notificationsService as never,
       usersService as never,
       tariffsService as never,
+      osrmService as never,
       redis as never,
     );
   });
 
   describe('startSearch', () => {
+    it('includes the quoted trip distance and duration so the driver can judge the ride', async () => {
+      orderRepository.findOne.mockResolvedValue(
+        makeOrder({ fareBreakdown: { distanceKm: 4.2, durationMin: 11 } }),
+      );
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ tripDistanceKm: 4.2, tripDurationMin: 11 }),
+      );
+    });
+
+    it('sends null trip figures when the order has no quote (taximeter)', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ tripDistanceKm: null, tripDurationMin: null }),
+      );
+    });
+
     it('offers the nearest driver and persists a Redis-backed queue', async () => {
       driversService.getNearbyDrivers.mockResolvedValue([
         makeDriver('driver-a', 1),
@@ -123,6 +174,58 @@ describe('MatchingService (Redis-backed queue)', () => {
       // Queue state actually landed in Redis, not just in-process memory.
       expect(redis.store.has('matching:queue:order-1')).toBe(true);
       expect(redis.activeSet.has(orderId)).toBe(true);
+    });
+
+    it('offers the driver with the shortest driving time, not the shortest straight line', async () => {
+      // driver-a is closer as the crow flies but 8 minutes away by road (the
+      // classic "other side of the river" case); driver-b is 3 minutes away.
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 0.4),
+        makeDriver('driver-b', 0.9),
+      ]);
+      osrmService.durationsTo.mockResolvedValue([480, 180]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-b',
+        'new_order_offer',
+        expect.objectContaining({ id: orderId }),
+      );
+    });
+
+    it('keeps the distance order when the router is unreachable', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 0.4),
+        makeDriver('driver-b', 0.9),
+      ]);
+      osrmService.durationsTo.mockResolvedValue(null);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ id: orderId }),
+      );
+    });
+
+    it('ranks a driver OSRM cannot route to by distance instead of dropping them', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 0.5),
+        makeDriver('driver-b', 2.5),
+      ]);
+      // driver-a sits on a street OSRM has no geometry for; at 25 km/h its
+      // 0.5 km fallback still beats driver-b's real 400 s.
+      osrmService.durationsTo.mockResolvedValue([null, 400]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ id: orderId }),
+      );
     });
 
     it('when no drivers are nearby, records a queue with an empty driver list instead of offering anyone', async () => {
@@ -159,14 +262,64 @@ describe('MatchingService (Redis-backed queue)', () => {
       );
     });
 
-    it('cancels the order once every driver in the queue has declined', async () => {
+    it('keeps searching instead of cancelling once every driver in the queue has declined', async () => {
+      // The order used to be cancelled the instant the last driver in the
+      // first batch declined, throwing away most of the search window.
+      // Now the queue stays active so the sweep can re-search for drivers who
+      // come online in the meantime.
       driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
       await service.startSearch(orderId);
+      orderRepository.update.mockClear();
 
       await service.driverDeclined('driver-a', orderId);
 
-      expect(orderRepository.update).toHaveBeenCalledWith(
+      expect(orderRepository.update).not.toHaveBeenCalledWith(
         orderId,
+        expect.objectContaining({ status: OrderStatus.CANCELLED }),
+      );
+      expect(redis.activeSet.has(orderId)).toBe(true);
+    });
+
+    it('offers the order to a driver who comes online after the first batch declined', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+      await service.driverDeclined('driver-a', orderId);
+      realtimeGateway.emitToUser.mockClear();
+
+      // A new driver appears in range; the previous decliner is still listed
+      // and must not be offered the same ride again.
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 1),
+        makeDriver('driver-c', 2),
+      ]);
+
+      await service.sweepExpiredOffers();
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-c',
+        'new_order_offer',
+        expect.anything(),
+      );
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.anything(),
+      );
+    });
+
+    it('cancels the order when the overall search deadline passes with no driver', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([]);
+      await service.startSearch(orderId);
+
+      // Jump past the 3-minute no-driver deadline (SEARCH_DEADLINE_MS).
+      const realNow = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 181_000);
+      await service.sweepExpiredOffers();
+      nowSpy.mockRestore();
+
+      // Conditional: only SEARCHING → CANCELLED, never over an accept.
+      expect(orderRepository.update).toHaveBeenCalledWith(
+        { id: orderId, status: OrderStatus.SEARCHING },
         expect.objectContaining({ status: OrderStatus.CANCELLED }),
       );
       expect(redis.activeSet.has(orderId)).toBe(false);
@@ -188,6 +341,471 @@ describe('MatchingService (Redis-backed queue)', () => {
 
       expect(realtimeGateway.emitToUser).not.toHaveBeenCalled();
       expect(orderRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Buyurtma turi bo'yicha filtr — shu o'zgarishning asosiy sababi.
+   *
+   * Ilgari `startSearch` filtrni umuman uzatmasdi: yuk buyurtmasi 3 km
+   * ichidagi HAR QANDAY onlayn haydovchiga, sedan egasiga ham tarqalardi.
+   *
+   * Bu yerdagi soxta `getNearbyDrivers` nomzodlar hovuzi ustida HAQIQIY
+   * predikatni (`driverMatchesCapabilities`) ishlatadi. Shuning uchun test
+   * ikki narsani birdan tekshiradi: matching to'g'ri talabni uzatayaptimi va
+   * predikat to'g'ri hukm chiqaryaptimi. Filtrni testda qaytadan yozsak,
+   * ikkalasi vaqt o'tib ajralib ketardi.
+   */
+  describe('buyurtma turi bo‘yicha filtr', () => {
+    interface PoolDriver {
+      userId: string;
+      distanceKm: number;
+      serviceTypes: ServiceType[] | null;
+      vehicleType: VehicleType | null;
+      amenities?: string[];
+    }
+
+    function sedan(userId: string, distanceKm: number): PoolDriver {
+      return { userId, distanceKm, serviceTypes: [ServiceType.TAXI], vehicleType: null };
+    }
+
+    function van(userId: string, distanceKm: number): PoolDriver {
+      return {
+        userId,
+        distanceKm,
+        serviceTypes: [ServiceType.CARGO],
+        vehicleType: VehicleType.VAN,
+      };
+    }
+
+    function usePool(pool: PoolDriver[]) {
+      driversService.getNearbyDrivers.mockImplementation(
+        (_lat, _lng, _radius, _tier, capabilities) =>
+          Promise.resolve(
+            pool
+              .filter((driver) => driverMatchesCapabilities(driver, capabilities))
+              .map((driver) => makeDriver(driver.userId, driver.distanceKm)),
+          ),
+      );
+    }
+
+    function cargoOrder() {
+      orderRepository.findOne.mockResolvedValue(
+        makeOrder({ serviceType: ServiceType.CARGO }),
+      );
+      tariffsService.findById.mockResolvedValue({
+        id: 'tariff-cargo-van',
+        tier: 1,
+        vehicleType: VehicleType.VAN,
+      });
+    }
+
+    function offeredTo(): string[] {
+      return realtimeGateway.emitToUser.mock.calls
+        .filter((call: unknown[]) => call[1] === 'new_order_offer')
+        .map((call: unknown[]) => call[0] as string);
+    }
+
+    it('yuk buyurtmasini yaqinroqdagi sedan haydovchiga TAKLIF QILMAYDI', async () => {
+      cargoOrder();
+      // Sedan ikki barobar yaqin — eski kodda taklif aynan unga ketardi.
+      usePool([sedan('sedan-driver', 0.4), van('van-driver', 0.9)]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual(['van-driver']);
+    });
+
+    it('yuk buyurtmasini furgon haydovchisiga taklif qiladi', async () => {
+      cargoOrder();
+      usePool([van('van-driver', 1.2)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'van-driver',
+        'new_order_offer',
+        expect.objectContaining({ id: orderId }),
+      );
+    });
+
+    it('taksi buyurtmasi avvalgidek ishlaydi (regressiya)', async () => {
+      usePool([sedan('sedan-driver', 0.4), van('van-driver', 0.9)]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual(['sedan-driver']);
+    });
+
+    it('serviceTypes BO‘SH haydovchi taksi buyurtmasini oladi (orqaga moslik)', async () => {
+      // Migratsiyagacha ro'yxatdan o'tgan haydovchi. Bo'shlikni "hech nima"
+      // deb o'qisak, deploy lahzasida birorta taksi buyurtmasi ham
+      // taqsimlanmay qolardi.
+      usePool([{ userId: 'legacy-driver', distanceKm: 0.6, serviceTypes: [], vehicleType: null }]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual(['legacy-driver']);
+    });
+
+    it('mos haydovchi yo‘q bo‘lsa "topilmadi" oqimi ishlaydi, filtr uni chetlab o‘tmaydi', async () => {
+      cargoOrder();
+      // Atrofda faqat sedanlar bor — ular yuk buyurtmasini bajara olmaydi.
+      usePool([sedan('sedan-a', 0.4), sedan('sedan-b', 0.7)]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual([]);
+      // Navbat saqlanadi: deadline'gacha qayta-qidiruv davom etadi.
+      expect(redis.activeSet.has(orderId)).toBe(true);
+      expect(JSON.parse(redis.store.get('matching:queue:order-1')!).drivers).toEqual([]);
+
+      const realNow = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 181_000);
+      await service.sweepExpiredOffers();
+      nowSpy.mockRestore();
+
+      expect(orderRepository.update).toHaveBeenCalledWith(
+        { id: orderId, status: OrderStatus.SEARCHING },
+        expect.objectContaining({
+          status: OrderStatus.CANCELLED,
+          cancelReason: 'No drivers available',
+        }),
+      );
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        passengerId,
+        'no_drivers_found',
+        expect.objectContaining({ orderId }),
+      );
+    });
+
+    it("bola o'rindig'i so'ralgan safar o'rindiqsiz haydovchiga bormaydi — qayta qidiruvda ham", async () => {
+      orderRepository.findOne.mockResolvedValue(makeOrder({ options: ['child_seat'] }));
+      const withSeat = { ...sedan('seat-driver', 1.1), amenities: ['child_seat', 'air_conditioner'] };
+      usePool([sedan('no-seat-driver', 0.3), withSeat]);
+
+      await service.startSearch(orderId);
+      expect(offeredTo()).toEqual(['seat-driver']);
+      // Offer shows the driver what was asked for.
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'seat-driver',
+        'new_order_offer',
+        expect.objectContaining({ options: ['child_seat'] }),
+      );
+      expect(JSON.parse(redis.store.get('matching:queue:order-1')!).tripOptions).toEqual(['child_seat']);
+    });
+
+    it('ETA tartiblash filtrdan KEYINGI ro‘yxatga qo‘llanadi', async () => {
+      cargoOrder();
+      // Sedan eng yaqin, lekin filtrdan tushadi. OSRM davomiyliklari
+      // filtrlangan ro'yxat tartibida keladi — agar filtr va ETA ro'yxatlari
+      // siljib qolsa, taklif noto'g'ri furgonga ketardi.
+      usePool([sedan('sedan-driver', 0.2), van('van-near', 0.5), van('van-far', 0.9)]);
+      osrmService.durationsTo.mockResolvedValue([480, 180]);
+
+      await service.startSearch(orderId);
+
+      // Yaqinroq furgon yo'l bo'yicha 8 daqiqa, naridagisi 3 daqiqa.
+      expect(offeredTo()).toEqual(['van-far']);
+      expect(osrmService.durationsTo).toHaveBeenCalledWith(
+        [
+          [69.1, 40.1],
+          [69.1, 40.1],
+        ],
+        [69.1, 40.1],
+      );
+      expect(osrmService.durationsTo.mock.calls[0][0]).toHaveLength(2);
+    });
+
+    it('qayta-qidiruv ham filtrni saqlaydi (navbat bilan birga yoziladi)', async () => {
+      cargoOrder();
+      usePool([sedan('sedan-driver', 0.4)]);
+      await service.startSearch(orderId);
+
+      // Bir furgon onlayn bo'ldi; sedan hamon eng yaqin.
+      usePool([sedan('sedan-driver', 0.4), van('van-late', 1.5)]);
+      await service.sweepExpiredOffers();
+
+      expect(offeredTo()).toEqual(['van-late']);
+    });
+
+    it('Redis‘da qolgan ESKI navbat (imkoniyat maydonlarisiz) taksi deb o‘qiladi', async () => {
+      // Deploy paytida yarim yo'ldagi qidiruvlar. `undefined` filtrga tushsa,
+      // ular hech qanday talabsiz hammaga tarqalib ketardi.
+      usePool([]);
+      await service.startSearch(orderId);
+
+      const key = 'matching:queue:order-1';
+      const saved = JSON.parse(redis.store.get(key)!);
+      delete saved.serviceType;
+      delete saved.vehicleType;
+      redis.store.set(key, JSON.stringify(saved));
+
+      usePool([sedan('sedan-driver', 0.5), van('van-driver', 0.6)]);
+      await service.sweepExpiredOffers();
+
+      expect(offeredTo()).toEqual(['sedan-driver']);
+    });
+
+    // ------------------------------------------------------------------
+    // OVQAT VA MARKET — aynan shu ikki vertikal uchun filtr qo'shilgandan
+    // keyin hech qanday qamrov yo'q edi, holbuki muammo ular ustida:
+    // migratsiya barcha haydovchilarga `['taxi']` yozgach, `FoodService`
+    // va `MarketService` yaratgan buyurtmalar hech kimga mos kelmay
+    // qoldi. Cargo testlari buni ushlamaydi — u transport turi bo'yicha
+    // filtrlanadi, yetkazib berish esa XIZMAT TURI bo'yicha.
+    // ------------------------------------------------------------------
+
+    /** Yetkazib berish haydovchisi: yengil avtomobil, lekin food/market yoqilgan. */
+    function courier(userId: string, distanceKm: number, types: ServiceType[]): PoolDriver {
+      return { userId, distanceKm, serviceTypes: types, vehicleType: null };
+    }
+
+    /**
+     * Yetkazib berish buyurtmasi. `vehicleType: null` ATAYLAB — ovqat/market
+     * tariflari transport turini talab qilmaydi (seed'dagi izohga qarang),
+     * ya'ni filtr FAQAT xizmat turi bo'yicha ishlashi kerak.
+     */
+    function deliveryOrder(serviceType: ServiceType) {
+      orderRepository.findOne.mockResolvedValue(makeOrder({ serviceType }));
+      tariffsService.findById.mockResolvedValue({
+        id: `tariff-${serviceType}`,
+        tier: 1,
+        vehicleType: null,
+      });
+    }
+
+    it('ovqat buyurtmasi ovqat yoqilgan haydovchiga boradi, taksichiga emas', async () => {
+      deliveryOrder(ServiceType.FOOD);
+      // Taksichi ikki barobar yaqin — u yutib ketmasligi kerak.
+      usePool([
+        sedan('taxi-only', 0.3),
+        courier('food-courier', 0.9, [ServiceType.TAXI, ServiceType.FOOD]),
+      ]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual(['food-courier']);
+    });
+
+    it('market buyurtmasi market yoqilgan haydovchiga boradi', async () => {
+      deliveryOrder(ServiceType.MARKET);
+      usePool([
+        sedan('taxi-only', 0.3),
+        courier('market-courier', 1.1, [ServiceType.TAXI, ServiceType.MARKET]),
+      ]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual(['market-courier']);
+    });
+
+    it('faqat ovqat yoqqan haydovchiga MARKET buyurtmasi bormaydi', async () => {
+      deliveryOrder(ServiceType.MARKET);
+      usePool([courier('food-only', 0.4, [ServiceType.FOOD])]);
+
+      await service.startSearch(orderId);
+
+      expect(offeredTo()).toEqual([]);
+    });
+
+    it('ovqat buyurtmasi ham qayta-qidiruvda filtrni saqlaydi', async () => {
+      // Restoran «tayyor» bosganda atrofda kuryer bo'lmasligi odatiy hol;
+      // navbat qidiruv muddati (3 daqiqa) davomida qayta-qidiradi va o'sha paytda ham
+      // buyurtma taksichilarga tarqalib ketmasligi kerak.
+      deliveryOrder(ServiceType.FOOD);
+      usePool([sedan('taxi-only', 0.3)]);
+      await service.startSearch(orderId);
+      expect(offeredTo()).toEqual([]);
+
+      usePool([
+        sedan('taxi-only', 0.3),
+        courier('food-late', 1.4, [ServiceType.FOOD]),
+      ]);
+      await service.sweepExpiredOffers();
+
+      expect(offeredTo()).toEqual(['food-late']);
+    });
+
+    it('taklif paketi XIZMAT TURINI olib boradi — ilova matnlarni shundan quradi', async () => {
+      // Maydonsiz paket xato bermaydi, JIMGINA taksi matnlarini
+      // ko'rsatadi (`Order.fromJson` bo'sh qiymatni `taxi` deb o'qiydi):
+      // haydovchi restorandan olinadigan buyurtmada «Yo'lovchigacha»
+      // yozuvini ko'rib, qarorni noto'g'ri ma'lumot asosida qabul qilardi.
+      deliveryOrder(ServiceType.FOOD);
+      usePool([courier('food-courier', 0.5, [ServiceType.FOOD])]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'food-courier',
+        'new_order_offer',
+        expect.objectContaining({ serviceType: ServiceType.FOOD }),
+      );
+    });
+
+    it('taksi taklifi ham turini aytadi (regressiya)', async () => {
+      usePool([sedan('sedan-driver', 0.4)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'sedan-driver',
+        'new_order_offer',
+        expect.objectContaining({ serviceType: ServiceType.TAXI }),
+      );
+    });
+  });
+
+  describe('taksi litsenziyasi hududi', () => {
+    interface LicencedDriver {
+      userId: string;
+      taxiLicenceRegion: string | null;
+    }
+
+    function usePool(pool: LicencedDriver[]) {
+      driversService.getNearbyDrivers.mockImplementation(
+        (_lat, _lng, _radius, _tier, capabilities) =>
+          Promise.resolve(
+            pool
+              .filter((d) =>
+                driverMatchesCapabilities({ serviceTypes: null, vehicleType: null, ...d }, capabilities),
+              )
+              .map((d) => makeDriver(d.userId)),
+          ),
+      );
+    }
+
+    function orderInCity(region: string | null, serviceType = ServiceType.TAXI) {
+      orderRepository.findOne.mockResolvedValue(makeOrder({ cityId: 'city-1', serviceType }));
+      orderRepository.query = jest
+        .fn()
+        .mockImplementation((sql: string) =>
+          Promise.resolve(
+            sql.includes('FROM cities')
+              ? [{ region }]
+              : sql.includes('ST_X(pickup_location')
+                ? [{ lat: 40.1, lng: 69.1 }]
+                : [coordsRow],
+          ),
+        );
+    }
+
+    const pool: LicencedDriver[] = [
+      { userId: 'samarqand', taxiLicenceRegion: 'UZ-SA' },
+      { userId: 'toshkent-shahar', taxiLicenceRegion: 'UZ-TK' },
+      { userId: 'hududsiz', taxiLicenceRegion: null },
+    ];
+
+    it("Toshkent viloyatidagi zakaz — o'z va qo'shni hudud litsenziyasi, hududsiz ham; Samarqand emas", async () => {
+      usePool(pool);
+      orderInCity('UZ-TO');
+
+      await service.startSearch(orderId);
+
+      const capabilities = driversService.getNearbyDrivers.mock.calls[0][4];
+      expect(capabilities).toEqual(expect.objectContaining({ pickupRegion: 'UZ-TO' }));
+      const offered = realtimeGateway.emitToUser.mock.calls
+        .filter(([, event]) => event === 'new_order_offer')
+        .map(([userId]) => userId);
+      expect(offered).not.toContain('samarqand');
+      expect(offered.length).toBeGreaterThan(0);
+    });
+
+    it('shaharga hudud berilmagan — cheklov yo\'q', async () => {
+      orderInCity(null);
+      await service.startSearch(orderId);
+      expect(driversService.getNearbyDrivers.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ pickupRegion: null }),
+      );
+    });
+
+    it('ovqat yetkazish — taksi litsenziyasi talab qilinmaydi, hudud so\'ralmaydi', async () => {
+      orderInCity('UZ-TO', ServiceType.FOOD);
+      await service.startSearch(orderId);
+      expect(driversService.getNearbyDrivers.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ pickupRegion: null }),
+      );
+      expect(
+        (orderRepository.query as jest.Mock).mock.calls.some(([sql]) => String(sql).includes('FROM cities')),
+      ).toBe(false);
+    });
+
+    it('qayta qidiruv navbatdagi hududni ishlatadi (zakaz qatori qayta o\'qilmaydi)', async () => {
+      orderInCity('UZ-TO');
+      await service.startSearch(orderId);
+      const queue = JSON.parse(
+        [...redis.store.entries()].find(([k]) => k.includes(orderId) && k.includes('queue'))?.[1] ?? '{}',
+      );
+      expect(queue.pickupRegion).toBe('UZ-TO');
+    });
+  });
+
+  describe('bitta haydovchiga bir vaqtda faqat BITTA taklif', () => {
+    // Ilgari ikki xil zakaz bir haydovchini bir vaqtda tanlay olardi: ilova
+    // faqat oxirgi taklifni ko'rsatadi, birinchisi 15 soniya javobsiz qolib
+    // o'sha zakazning yo'lovchisi bekorga kutardi.
+    const hold = (userId: string) => `matching:offer:${userId}`;
+
+    it('taklif yuborilganda haydovchi shu zakaz uchun band qilinadi (TTL bilan)', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(redis.store.get(hold('driver-a'))).toBe(orderId);
+      expect(redis.set).toHaveBeenCalledWith(hold('driver-a'), orderId, 'EX', expect.any(Number), 'NX');
+    });
+
+    it("boshqa zakazning taklifini ko'rib turgan haydovchini o'tkazib, keyingisiga taklif qiladi", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 1),
+        makeDriver('driver-b', 2),
+      ]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith('driver-b', 'new_order_offer', expect.anything());
+    });
+
+    it("hamma band bo'lsa taklif yubormaydi, lekin ularni rad etgan deb HISOBLAMAYDI — bo'shashi bilan oladi", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+
+      redis.store.delete(hold('driver-a')); // boshqa zakazga javob berdi
+      await service.sweepExpiredOffers();
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+    });
+
+    it('rad etilganda band belgisi darhol olinadi', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+
+      await service.driverDeclined('driver-a', orderId);
+
+      expect(redis.store.has(hold('driver-a'))).toBe(false);
+    });
+
+    it('qabul qilinganda band belgisi olinadi', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+
+      await service.driverAccepted('driver-a', orderId);
+
+      expect(redis.store.has(hold('driver-a'))).toBe(false);
+    });
+
+    it("boshqa zakazning band belgisiga tegmaydi (eskirgan javob kelsa)", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+
+      await service.driverAccepted('driver-a', orderId);
+
+      expect(redis.store.get(hold('driver-a'))).toBe('order-boshqa');
     });
   });
 
@@ -226,6 +844,7 @@ describe('MatchingService (Redis-backed queue)', () => {
         notificationsService as never,
         usersService as never,
         tariffsService as never,
+        osrmService as never,
         redis as never,
       );
       realtimeGateway.emitToUser.mockClear();
@@ -252,7 +871,7 @@ describe('MatchingService (Redis-backed queue)', () => {
       await service.sweepExpiredOffers();
 
       expect(orderRepository.update).toHaveBeenCalledWith(
-        orderId,
+        { id: orderId, status: OrderStatus.SEARCHING },
         expect.objectContaining({ status: OrderStatus.CANCELLED }),
       );
     });

@@ -1,0 +1,114 @@
+{
+  "shPushChannelOrders": "Buyurtmalar",
+  "shPushChannelOrdersDescription": "Buyurtma holati, haydovchi va kuryer xabarlari",
+  "saCancelOrderAction": "Buyurtmani bekor qilish",
+  "saCancelOrderTitle": "Buyurtmani bekor qilasizmi?",
+  "saCancelOrderReasonPrompt": "Sababini tanlang (ixtiyoriy)",
+  "saCancelReasonChangedMind": "Fikrimni o'zgartirdim",
+  "saCancelReasonWrongAddress": "Manzil noto'g'ri",
+  "saCancelReasonTooLong": "Juda uzoq kutish",
+  "saCancelReasonWrongItems": "Noto'g'ri tanlabman",
+  "saCancelReasonOther": "Boshqa sabab",
+  "saCancelReasonHint": "Sababni yozing",
+  "saCancelOrderConfirm": "Ha, bekor qilish",
+  "saCancelOrderKeep": "Yo'q, qoldirish",
+  "saCancelNotAllowedHint": "Restoran buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+  "saCancelNotAllowedMarketHint": "Do'kon buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+  "saOrderCancelledToast": "Buyurtma bekor qilindi",
+  "saCancelFailed": "Bekor qilib bo'lmadi: {message}",
+  "@saCancelFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saContactSupport": "Qo'llab-quvvatlashga yozish",
+  "saOrderDetailTitle": "Buyurtma #{number}",
+  "@saOrderDetailTitle": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "saTrackCourier": "Kuryerni xaritada kuzatish",
+  "saOrderItems": "Tarkibi",
+  "saCancelReasonLabel": "Sabab: {reason}",
+  "@saCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoCodeLine": "Promokod {code}",
+  "@saPromoCodeLine": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "saVendorDiscountLine": "Restoran/do'kon chegirmasi",
+  "paxCancelTrip": "Safarni bekor qilish",
+  "paxCancelTripUnavailable": "Safar boshlangan — endi bekor qilib bo'lmaydi",
+  "saPromoTitle": "Promokod",
+  "saPromoHint": "Promokodni kiriting",
+  "saPromoApply": "Qo'llash",
+  "saPromoRemove": "Olib tashlash",
+  "saPromoApplied": "{code} qo'llandi",
+  "@saPromoApplied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoInvalid": "Promokod yaroqsiz",
+  "saPromoNotApplicable": "Bu promokod ushbu xizmatga tegishli emas",
+  "saPromoEmpty": "Avval promokodni kiriting",
+  "saPromoDiscount": "Promokod chegirmasi",
+  "saPromoServerRecalc": "Yakuniy chegirmani server buyurtma yaratilganda hisoblaydi",
+  "saAddressDetailsTitle": "Manzil tafsilotlari",
+  "saAddressDetailsSubtitle": "Kuryer sizni tezroq topishi uchun",
+  "saAddressEntrance": "Podyezd",
+  "saAddressFloor": "Qavat",
+  "saAddressApartment": "Xonadon",
+  "saAddressIntercom": "Domofon",
+  "saAddressLandmark": "Mo'ljal",
+  "saAddressLandmarkHint": "Masalan: maktab yonida, yashil darvoza",
+  "saAddressCourierNote": "Kuryerga izoh",
+  "saAddressCourierNoteHint": "Masalan: kelganda qo'ng'iroq qiling",
+  "saAddressDetailsPrefilled": "Oxirgi buyurtmadan to'ldirildi",
+  "saDealsTitle": "Chegirmalar",
+  "saDealUntil": "{date} gacha",
+  "@saDealUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "saMenuOther": "Boshqa",
+  "saPriceWithDiscount": "Chegirmali narx {now}, eski narx {old}",
+  "@saPriceWithDiscount": {
+    "placeholders": {
+      "now": {
+        "type": "String"
+      },
+      "old": {
+        "type": "String"
+      }
+    }
+  },
+  "saDiscountLine": "Chegirma",
+  "saDealMinOrder": "{amount} dan buyurtmada",
+  "@saDealMinOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { t } from '@/locales';
 
 export type AsyncStatus = 'loading' | 'ready' | 'error';
 
@@ -10,6 +11,12 @@ export interface AsyncData<T> {
   error: string | null;
   /** Fonda yangilanmoqda — skeletni qaytadan ko'rsatmaydi. */
   isRefreshing: boolean;
+  /**
+   * Oxirgi MUVAFFAQIYATLI yuklanish vaqti (Date.now()). Polling halolligi
+   * uchun: "yangilandi N soniya oldin" yozuvi va aloqa uzilganda "ma'lumot
+   * shu vaqt holaticha" belgisi shu qiymatdan chiqadi.
+   */
+  lastUpdatedAt: number | null;
   reload: () => Promise<void>;
   setData: (updater: (prev: T | null) => T | null) => void;
 }
@@ -18,7 +25,7 @@ export function errorMessage(err: unknown): string {
   const response = (err as { response?: { data?: { message?: string } } })?.response;
   if (response?.data?.message) return response.data.message;
   if (err instanceof Error && err.message) return err.message;
-  return "Server bilan bog'lanib bo'lmadi";
+  return t().common.serverUnreachable;
 }
 
 /**
@@ -35,6 +42,7 @@ export function useAsyncData<T>(
   const [status, setStatus] = useState<AsyncStatus>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
@@ -59,6 +67,7 @@ export function useAsyncData<T>(
       setDataState(result);
       setError(null);
       setStatus('ready');
+      setLastUpdatedAt(Date.now());
     } catch (err) {
       if (!alive.current) return;
       setError(errorMessage(err));
@@ -82,5 +91,5 @@ export function useAsyncData<T>(
     setDataState((prev) => updater(prev));
   }, []);
 
-  return { data, status, error, isRefreshing, reload: run, setData };
+  return { data, status, error, isRefreshing, lastUpdatedAt, reload: run, setData };
 }

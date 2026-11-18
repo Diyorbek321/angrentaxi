@@ -15,6 +15,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MarketOrderDeliveryMode, MarketPaymentMethod } from '../../../database/entities/market-order.entity';
+import { AddressDetailsDto } from '../../../common/dto/address-details.dto';
 
 export class MarketOrderItemInputDto {
   @ApiProperty()
@@ -71,4 +72,16 @@ export class CreateMarketOrderDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  @ApiPropertyOptional({ description: "Promokod — server qayta tekshiradi (chegirma platforma hisobidan)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  promoCode?: string;
+
+  @ApiPropertyOptional({ type: AddressDetailsDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDetailsDto)
+  addressDetails?: AddressDetailsDto | null;
 }

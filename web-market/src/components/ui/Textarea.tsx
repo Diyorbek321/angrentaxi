@@ -1,39 +1,33 @@
-import { forwardRef, TextareaHTMLAttributes } from 'react';
-import { clsx } from 'clsx';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
+
+import { forwardRef, useId, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
+  label?: ReactNode;
   error?: string;
-  hint?: string;
+  hint?: ReactNode;
+  wrapperClassName?: string;
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, className, id, ...props }, ref) => {
-    const areaId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
-
+  ({ label, error, hint, wrapperClassName, className, id, required, ...props }, ref) => {
+    const auto = useId();
+    const areaId = id ?? auto;
     return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={areaId} className="text-xs font-medium text-muted">
-            {label}
-          </label>
-        )}
+      <Field id={areaId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
         <textarea
           ref={ref}
           id={areaId}
-          className={clsx(
-            'w-full bg-surface border rounded-lg text-ink placeholder-subtle text-sm px-3 py-2',
-            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
-            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
-            'transition-colors resize-y min-h-[72px]',
-            error ? 'border-danger/60 focus:ring-danger/30 focus:border-danger' : 'border-line hover:border-line-strong',
-            className
-          )}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(areaId, error, hint)}
+          className={cn(controlBase, controlBorder(!!error), 'px-2.5 py-1.5 resize-y min-h-[72px]', className)}
           {...props}
         />
-        {error && <p className="text-xs text-danger">{error}</p>}
-        {hint && !error && <p className="text-xs text-subtle">{hint}</p>}
-      </div>
+      </Field>
     );
   }
 );

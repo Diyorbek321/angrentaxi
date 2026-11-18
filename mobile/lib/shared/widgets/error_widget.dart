@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 // ============================================================================
@@ -16,16 +17,16 @@ class AppErrorState extends StatelessWidget {
   const AppErrorState({
     super.key,
     required this.message,
-    this.title = 'Xatolik yuz berdi',
+    this.title,
     this.onRetry,
-    this.retryLabel = 'Qayta urinish',
+    this.retryLabel,
     this.compact = false,
   });
 
   final String message;
-  final String title;
+  final String? title;
   final VoidCallback? onRetry;
-  final String retryLabel;
+  final String? retryLabel;
   final bool compact;
 
   @override
@@ -60,7 +61,7 @@ class AppErrorState extends StatelessWidget {
               ),
               SizedBox(height: compact ? kSpace3 : kSpace5),
               Text(
-                title,
+                title ?? context.l10n.shErrorGeneric,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: compact ? kFontTitle : kFontH3,
@@ -88,7 +89,7 @@ class AppErrorState extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(180, kControlHeight),
                     ),
-                    child: Text(retryLabel),
+                    child: Text(retryLabel ?? context.l10n.shRetry),
                   ),
                 ),
               ],
@@ -106,12 +107,12 @@ class AppErrorWidget extends StatelessWidget {
     super.key,
     required this.message,
     this.onRetry,
-    this.retryLabel = 'Qayta urinish',
+    this.retryLabel,
   });
 
   final String message;
   final VoidCallback? onRetry;
-  final String retryLabel;
+  final String? retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -129,19 +130,19 @@ class InlineErrorWidget extends StatelessWidget {
     super.key,
     required this.message,
     this.onRetry,
-    this.retryLabel = 'Qayta urinish',
+    this.retryLabel,
   });
 
   final String message;
   final VoidCallback? onRetry;
-  final String retryLabel;
+  final String? retryLabel;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
       liveRegion: true,
-      label: 'Xatolik: $message',
+      label: context.l10n.shErrorSemantics(message),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.all(kSpace3),
@@ -177,7 +178,7 @@ class InlineErrorWidget extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: kSpace3),
                   ),
                   child: Text(
-                    retryLabel,
+                    retryLabel ?? context.l10n.shRetry,
                     style: const TextStyle(
                       fontSize: kFontLabel,
                       fontWeight: FontWeight.w700,

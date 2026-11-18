@@ -1,0 +1,22 @@
+# Release signing configuration.
+#
+# Copy to `android/key.properties` and fill in real values. That file is
+# gitignored — the keystore and its passwords must never be committed.
+#
+# Create the keystore once (keep the .jks file and these passwords safe and
+# backed up: losing them means you can never publish an update to the same
+# Play Store listing):
+#
+#   keytool -genkey -v \
+#     -keystore ~/angren-taxi-release.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias angren-taxi
+#
+# Then build:
+#   flutter build apk    --release --flavor passenger -t lib/main_passenger.dart
+#   flutter build appbundle --release --flavor driver  -t lib/main_driver.dart
+
+storeFile=/absolute/path/to/angren-taxi-release.jks
+storePassword=CHANGE_ME
+keyAlias=angren-taxi
+keyPassword=CHANGE_ME

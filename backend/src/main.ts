@@ -1,6 +1,5 @@
-import * as Sentry from '@sentry/node';
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -10,16 +9,10 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { resolveCorsOrigin } from './config/cors-origin.util';
+import { initErrorReporting } from './common/observability/error-reporting';
 
-// Init Sentry before app starts
-const sentryDsn = process.env.SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.1,
-  });
-}
+// Sentry ilova yaratilishidan oldin (SENTRY_DSN bo'lmasa o'chiq).
+initErrorReporting();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -61,7 +54,7 @@ async function bootstrap(): Promise<void> {
 
   // Global filters and interceptors
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
 
   // Global API prefix
   app.setGlobalPrefix('api/v1');
@@ -102,8 +95,39 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`🚀 Angren Taxi API running on: http://localhost:${port}`);
-  console.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+
+  const logger = new Logger('Bootstrap');
+  logger.log(`🚀 Angren Taxi API running on: http://localhost:${port}`);
+  logger.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+
+  // A production server running with the OTP bypass on is a full
+  // authentication bypass: every phone number, including staff accounts, logs
+  // in with a fixed code. It is still permitted (an internal test server may
+  // legitimately run NODE_ENV=production), but it must never pass unnoticed.
+  const bypassActive =
+    process.env.NODE_ENV === 'production' &&
+    process.env.OTP_BYPASS_ENABLED === 'true' &&
+    process.env.ALLOW_OTP_BYPASS_IN_PROD === 'true';
+
+  if (bypassActive) {
+    logger.error(
+      '⚠️  OTP BYPASS IS ACTIVE IN PRODUCTION — any phone number can log in ' +
+        'with the fixed bypass code, including admin accounts. Set ' +
+        'OTP_BYPASS_ENABLED=false and ALLOW_OTP_BYPASS_IN_PROD=false.',
+    );
+  }
 }
 
-bootstrap();
+// ⚠️ Xatoni YUTMASLIK muhim: `bootstrap()` kutilmagan holda qolsa, port
+// band, baza yetib bo'lmaydigan yoki `NODE_ENV` ko'rsatilmagan holatda
+// jarayon xatoni faqat "unhandled rejection" bo'lib chiqarardi va
+// muvaffaqiyatli chiqish kodi bilan tugashi mumkin edi — ya'ni deploy
+// vositasi ishga tushmagan serverni "ko'tarildi" deb hisoblardi.
+//
+// Endi sabab jurnalga tushadi va chiqish kodi 1 bo'ladi.
+bootstrap().catch((err: unknown) => {
+  // Logger'ning o'zi ishga tushmagan bo'lishi mumkin, shuning uchun
+  // konsolga to'g'ridan-to'g'ri yoziladi.
+  console.error('Ilovani ishga tushirib bo\'lmadi:', err);
+  process.exit(1);
+});

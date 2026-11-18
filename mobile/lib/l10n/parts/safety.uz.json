@@ -1,0 +1,14 @@
+{
+  "safetyCallFailed": "Qo'ng'iroq qilib bo'lmadi. Chat orqali yozing.",
+  "safetyShareTitle": "Safarni ulashish",
+  "safetyShareMessage": "Safarimni jonli kuzating (Angren Taxi): {url}",
+  "@safetyShareMessage": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyShareCopied": "Kuzatuv havolasi nusxalandi — yaqiningizga yuboring",
+  "safetyShareFailed": "Havolani yaratib bo'lmadi. Qayta urinib ko'ring."
+}

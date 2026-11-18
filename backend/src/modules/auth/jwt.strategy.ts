@@ -1,19 +1,26 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { accountBlockedError } from './blocked-error';
+import type { Request } from 'express';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { User, UserStatus } from '../../database/entities/user.entity';
+import { explicitLanguage } from '../../common/i18n/error-messages';
+import { DUAL_ROLE_LOGIN_ENV, scopeUserToToken } from './session-role';
 
 interface JwtPayload {
   sub: string;
   phone: string;
   role: string;
   type: 'access' | 'refresh';
+  app?: string;
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
@@ -25,10 +32,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // required, and a silent fallback would accept tokens signed with a
       // publicly known key if the variable ever went missing.
       secretOrKey: configService.getOrThrow<string>('APP_SECRET'),
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
+  async validate(req: Request, payload: JwtPayload): Promise<User> {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');
     }
@@ -43,9 +51,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // next request rather than only at login/refresh time — otherwise a
     // blocked account keeps working until its access token expires.
     if (user.status === UserStatus.BLOCKED) {
-      throw new UnauthorizedException('Account is blocked');
+      throw accountBlockedError(user);
     }
 
-    return user;
+    // Haydovchi yo'lovchi ilovasida — shu so'rovda `role: passenger`
+    // (`session-role.ts`). Rol tokendan EMAS, bazadan + `app` claim'dan
+    // hisoblanadi: bloklash yoki rol o'zgarishi darhol ta'sir qiladi.
+    const scoped = scopeUserToToken(
+      user,
+      payload.app,
+      this.configService.get<unknown>(DUAL_ROLE_LOGIN_ENV),
+    );
+    await this.syncLanguage(scoped, req.headers['accept-language']);
+    return scoped;
+  }
+
+  /**
+   * Ilova/panel tilini foydalanuvchiga yozadi — push va SMS shu tilda ketadi.
+   * Faqat til O'ZGARGANDA bitta UPDATE; xato so'rovni yiqitmaydi (til —
+   * qulaylik, autentifikatsiya emas).
+   */
+  private async syncLanguage(user: User, header: string | string[] | undefined): Promise<void> {
+    const language = explicitLanguage(header);
+    if (!language || language === user.language) return;
+    try {
+      await this.usersService.updateLanguage(user.id, language);
+      user.language = language;
+    } catch (err) {
+      this.logger.warn(`Language sync failed for user ${user.id}: ${(err as Error).message}`);
+    }
   }
 }

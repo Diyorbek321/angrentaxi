@@ -1,17 +1,28 @@
 import 'dart:async';
-
 import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/platform/driver_overlay.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
+import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
+import 'package:angren_taxi/features/driver/widgets/vendor_wallet_insufficient_dialog.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class OrderOfferScreen extends StatefulWidget {
-  const OrderOfferScreen({super.key});
+  const OrderOfferScreen({super.key, this.overlay = const DriverOverlay()});
+
+  /// Ovoz signali uchun (testlarda soxta).
+  final DriverOverlay overlay;
 
   @override
   State<OrderOfferScreen> createState() => _OrderOfferScreenState();
@@ -24,17 +35,29 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   late AnimationController _progressController;
   double? _distanceToPickup;
 
+  /// Ekran o'zi chiqib ketyapti (qabul/rad/vaqt tugadi). Shundan keyin
+  /// `pendingOffer == null` holati "taklif yo'qoldi, yopil" degani EMAS —
+  /// [_leave] ga qarang.
+  bool _leaving = false;
+
+  /// Ekran HOZIR ko'rsatayotgan taklif. Ekran ochiq turganda yangi taklif
+  /// kelsa (oldingisi tugagan), hisoblagich unga qayta bog'lanadi — ilgari
+  /// birinchi taklifning taymeri ikkinchisini muddatidan oldin rad etardi.
+  String? _offerId;
+
+  /// "Qabul qilish" bosildi va javob kutilmoqda — ikkinchi bosish e'tiborsiz.
+  bool _accepting = false;
+
+  DriverProvider get _provider => context.read<DriverProvider>();
+
   @override
   void initState() {
     super.initState();
-    _secondsLeft = AppConfig.orderOfferTimeout.inSeconds;
-
     _progressController = AnimationController(
       vsync: this,
       duration: AppConfig.orderOfferTimeout,
-    )..forward();
-
-    _startCountdown();
+    );
+    _bindToOffer(_provider.pendingOffer);
     _calculateDistance();
   }
 
@@ -45,14 +68,63 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     super.dispose();
   }
 
+  /// Hisoblagichni [offer] ga bog'laydi va signal beradi.
+  void _bindToOffer(Order? offer) {
+    _offerId = offer?.id;
+    if (offer == null) return;
+    _syncCountdown();
+    // Buyurtma taklifi keldi — haydovchi telefonga qaramayotgan bo'lishi
+    // mumkin (yo'lda, cho'ntakda). Bu ilovadagi eng kuchli haptik signal
+    // bo'lishi kerak, chunki taklif vaqt bilan chegaralangan.
+    AppHaptics.heavy();
+    // Ilova EKRANDA bo'lsa ovoz ham (fonda fon bildirishnomasi jiringlaydi).
+    // Ilgari faqat vibratsiya edi — ushlagichdagi telefonda sezilmasdi.
+    if (!_inBackground(WidgetsBinding.instance.lifecycleState)) {
+      unawaited(widget.overlay.playOfferSound());
+    }
+    _startCountdown();
+  }
+
+  /// Fonda — u holda jiringlovchi bildirishnoma `DriverBackgroundBridge`
+  /// dan chiqadi, ikkinchi ovoz kerak emas. `null` (holat hali noma'lum) —
+  /// ekranda deb hisoblanadi: jim qolishdan ortiqcha ovoz yaxshiroq.
+  static bool _inBackground(AppLifecycleState? state) =>
+      state == AppLifecycleState.paused ||
+      state == AppLifecycleState.hidden ||
+      state == AppLifecycleState.detached;
+
+  /// Qolgan vaqt PROVIDER muddatidan olinadi (taklif kelgan paytdan) —
+  /// mahalliy kamaytiruvchi hisoblagich emas. Ekran fonda kech qurilsa yoki
+  /// taymer qabul paytida to'xtab qolsa ham ko'rsatkich haqiqiy bo'ladi.
+  void _syncCountdown() {
+    const full = AppConfig.orderOfferTimeout;
+    final left = _provider.offerTimeLeft;
+    _secondsLeft = (left.inMilliseconds / 1000).ceil();
+    _progressController.forward(
+      from: 1 - left.inMilliseconds / full.inMilliseconds,
+    );
+  }
+
   void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft <= 0) {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+      if (!mounted) {
         timer.cancel();
-        if (mounted) _autoDecline();
         return;
       }
-      if (mounted) setState(() => _secondsLeft--);
+      final before = _secondsLeft;
+      final seconds = (_provider.offerTimeLeft.inMilliseconds / 1000).ceil();
+      if (seconds <= 0) {
+        timer.cancel();
+        _autoDecline();
+        return;
+      }
+      if (seconds != before) {
+        setState(() => _secondsLeft = seconds);
+        // Oxirgi 5 soniyada har soniyada yengil "tik" — vaqt tugayotgani
+        // ekranga qaramasdan ham seziladi.
+        if (seconds <= 5) AppHaptics.select();
+      }
     });
   }
 
@@ -74,29 +146,98 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     }
   }
 
+  /// Vaqt tugadi — JIMGINA rad etiladi.
+  ///
+  /// ⚠️ Bu yerga modal, dialog yoki snackbar QO'SHMANG. Taklif muddati
+  /// tugaganda haydovchi ko'pincha yo'lga qarab turadi; "kechikdingiz"
+  /// degan ekran — jazo, va uni yopish uchun yana bir teginish talab
+  /// qilinadi. Ekran shunchaki yopiladi, haydovchi bosh ekranga qaytadi.
   void _autoDecline() {
-    final provider = context.read<DriverProvider>();
-    final offer = provider.pendingOffer;
-    if (offer != null) {
-      provider.declineOrder(offer.id);
+    final provider = _provider;
+    // Faqat SHU ekran ko'rsatgan taklif — orada yangisi kelgan bo'lsa
+    // unga tegilmaydi.
+    final offerId = _offerId;
+    if (offerId != null && provider.pendingOffer?.id == offerId) {
+      provider.declineOrder(offerId);
     }
-    if (mounted) Navigator.of(context).pop();
+    _leave();
+  }
+
+  /// Faqat SHU ekranni yopadi.
+  ///
+  /// ⚠️ `Navigator.pop()` ISHLATILMAYDI: u qaysi ekrandan chaqirilishidan
+  /// qat'i nazar ENG USTDAGI ekranni yopadi. Qabul qilishda taklif ekrani
+  /// navigatsiya bilan almashtiriladi va o'tish animatsiyasi davomida hali
+  /// tirik bo'ladi — o'sha paytda chaqirilgan `pop()` yangi ochilgan
+  /// navigatsiya ekranini yopib, haydovchini bosh ekranga qaytarardi.
+  void _leave() {
+    if (_leaving || !mounted) return;
+    _leaving = true;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    if (route.isCurrent) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).removeRoute(route);
+    }
   }
 
   Future<void> _onAccept(Order offer) async {
+    if (_accepting) return;
+    _accepting = true;
     _timer?.cancel();
-    final provider = context.read<DriverProvider>();
+    // Qabul so'rovi tugaganda `pendingOffer` tozalanadi — bu ekran o'shanda
+    // o'zini yopmasligi kerak, uni navigatsiya almashtiradi.
+    _leaving = true;
+    final provider = _provider;
     await provider.acceptOrder(offer.id);
+    _accepting = false;
 
     if (!mounted) return;
     if (provider.state == DriverProviderState.success) {
+      AppHaptics.success();
       Navigator.of(context).pushReplacementNamed('/driver/navigation');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text(provider.error ?? 'Buyurtmani qabul qilib bo\'lmadi')),
+      return;
+    }
+    // Qabul o'tmadi — ekran yana o'z holatiga qaraydi (taklif boshqa
+    // haydovchiga ketgan bo'lsa yopiladi).
+    _leaving = false;
+    AppHaptics.error();
+    final message = provider.error ?? context.l10n.drvAcceptFailed;
+    // Hamyon rejimi (e-tijorat qonuni, 23-modda): naqd ovqat/market
+    // buyurtmasida tovar puli do'konga hamyondan o'tadi. Yetmasa —
+    // umumiy xato emas, aniq tushuntirish va "To'ldirish" tugmasi.
+    if (provider.errorKind == DriverErrorKind.vendorWalletInsufficient) {
+      final amounts = codedErrorAmountsText(provider.errorDetails);
+      provider.clearError();
+      await showVendorWalletInsufficientDialog(
+        context,
+        message,
+        amounts: amounts,
       );
+      return;
+    }
+    // Huquqiy blok — bosh ekran sabablar ro'yxati bilan oyna ochadi (u
+    // xatoni o'zi tozalaydi); bu yerda takroriy snackbar kerak emas.
+    if (provider.errorKind == DriverErrorKind.legalBlocked || provider.error == null) {
+      return;
+    }
+    // Boshqa xatoni SHU ekran ko'rsatadi (bosh ekran taklif ochiq paytda
+    // jim turadi) — ikki marta, bittasi umumiy matn bilan, chiqmaydi.
+    provider.clearError();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+    // Tarmoq xatosi — taklif hali bu haydovchiniki: hisoblagich QAYTA
+    // yuradi (ilgari to'xtab, ekran abadiy "7 s" da qotib qolardi).
+    // Vaqt allaqachon tugagan bo'lsa ekran yopiladi.
+    if (provider.pendingOffer?.id == offer.id) {
+      if (provider.offerTimeLeft > Duration.zero) {
+        _syncCountdown();
+        _startCountdown();
+      } else {
+        _leave();
+      }
     }
   }
 
@@ -104,7 +245,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     _timer?.cancel();
     final provider = context.read<DriverProvider>();
     await provider.declineOrder(offer.id);
-    if (mounted) Navigator.of(context).pop();
+    _leave();
   }
 
   @override
@@ -112,21 +253,35 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     return Consumer<DriverProvider>(
       builder: (context, provider, _) {
         final offer = provider.pendingOffer;
-        if (offer == null) {
+        if (offer != null && offer.id != _offerId && !_leaving) {
+          // Ekran ochiq turganda yangi taklif keldi — hisoblagich unga.
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Navigator.of(context).pop();
+            if (mounted && provider.pendingOffer?.id != _offerId) {
+              setState(() => _bindToOffer(provider.pendingOffer));
+            }
           });
+        }
+        if (offer == null) {
+          // Taklif bekor qilindi yoki boshqa haydovchiga ketdi. Ekran o'zi
+          // chiqib ketayotgan bo'lsa (qabul qilindi) — tegilmaydi.
+          if (!_leaving) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _leave());
+          }
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
+        // ⚠️ Butun ekran matni SHU YERDAN: haydovchi nima qabul
+        // qilayotganini (taksi? ovqat?) bilishi shart.
+        final wording = offer.wording;
 
         return Scaffold(
           backgroundColor: kInk,
           body: SafeArea(
             child: Column(
               children: [
-                _buildHeader(),
+                _buildHeader(wording),
                 Expanded(
                   child: Container(
                     width: double.infinity,
@@ -136,22 +291,65 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                         top: Radius.circular(kRadiusXl),
                       ),
                     ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(kSpace4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildCountdownTimer(),
-                          const SizedBox(height: kSpace6),
-                          _buildPriceCard(offer),
-                          const SizedBox(height: kSpace5),
-                          _buildRouteInfo(offer),
-                          const SizedBox(height: kSpace5),
-                          if (_distanceToPickup != null) _buildDistanceInfo(),
-                          const SizedBox(height: kSpace8),
-                          _buildActionButtons(offer, provider),
-                        ],
-                      ),
+                    // ⚠️ XAVFSIZLIK: amallar SKROLLDAN TASHQARIDA, pastga
+                    // MIXLANGAN.
+                    //
+                    // Avval butun tarkib (taymer + to'lov + marshrut +
+                    // tugmalar) bitta `SingleChildScrollView` ichida edi.
+                    // 360×640 ekranda — ya'ni arzon Android telefonda, aynan
+                    // haydovchilarning ko'pchiligida — tarkib balandligi 878dp
+                    // chiqardi va "Qabul qilish" ekran chekkasidan 238dp PASTDA
+                    // qolardi. Ya'ni vaqti chegaralangan taklifni qabul qilish
+                    // uchun haydovchi avval SKROLL qilishi kerak edi: eng
+                    // muhim nishon ko'rinmas, taymer esa sanayotgan bo'lardi.
+                    //
+                    // Endi qaror MA'LUMOTI suriladi (taymer → to'lov →
+                    // marshrut), qaror AMALLARI esa har qanday ekranda,
+                    // skrollning har qanday holatida joyida turadi.
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(kSpace4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildCountdownTimer(),
+                                const SizedBox(height: kSpace6),
+                                _buildPriceCard(offer),
+                                if (offer.options.isNotEmpty) ...[
+                                  const SizedBox(height: kSpace4),
+                                  TripOptionsBadges(options: offer.options),
+                                ],
+                                if (offer.delivery != null) ...[
+                                  const SizedBox(height: kSpace4),
+                                  DeliveryInfoCard(
+                                    delivery: offer.delivery!,
+                                    stage: DeliveryCardStage.offer,
+                                  ),
+                                ],
+                                if (offer.parcel != null) ...[
+                                  const SizedBox(height: kSpace4),
+                                  ParcelInfoCard(
+                                    parcel: offer.parcel!,
+                                    stage: DeliveryCardStage.offer,
+                                  ),
+                                ],
+                                const SizedBox(height: kSpace5),
+                                _buildRouteInfo(offer, wording),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Tarkib mixlangan panel ostida kesiladi — bu BEZAK
+                        // ajratkichi kesilish chizig'ini ko'rsatadi, shuning
+                        // uchun `kLine` (interaktiv emas).
+                        const Divider(height: 1, thickness: 1, color: kLine),
+                        Padding(
+                          padding: const EdgeInsets.all(kSpace4),
+                          child: _buildActionButtons(offer, provider),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -163,9 +361,12 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     );
   }
 
-  Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.all(kSpace5),
+  /// Buyurtma TURI birinchi ko'rinadigan narsa: haydovchi 60 soniya ichida
+  /// qaror qiladi va "taksi deb o'ylab ovqat oldim" holati bo'lmasligi
+  /// kerak. Ikonka yolg'iz qolmaydi — yonida [DriverServiceWording.typeLabel].
+  Widget _buildHeader(DriverServiceWording wording) {
+    return Padding(
+      padding: const EdgeInsets.all(kSpace5),
       child: Column(
         children: [
           // Mint TO'LDIRISH — ustida faqat ink ikona (7.84:1), oq emas.
@@ -174,21 +375,51 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
               width: 56,
               height: 56,
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: kMint,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.local_taxi, color: kOnMint, size: 28),
+                child: Icon(wording.icon, color: kOnMint, size: 28),
               ),
             ),
           ),
-          SizedBox(height: kSpace2),
+          const SizedBox(height: kSpace2),
           Text(
-            'Yangi buyurtma!',
-            style: TextStyle(
+            context.l10n.drvNewOrder,
+            style: const TextStyle(
               color: kOnPrimary,
               fontSize: kFontH2,
               fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: kSpace2),
+          Container(
+            key: const ValueKey('offer_service_type'),
+            padding: const EdgeInsets.symmetric(
+              horizontal: kSpace3,
+              vertical: kSpace1 + 2,
+            ),
+            decoration: BoxDecoration(
+              // To'q fon ustida oq matn — 15:1 dan yuqori.
+              color: kOnPrimary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(kRadiusFull),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(wording.icon, color: kOnPrimary, size: 16),
+                ),
+                const SizedBox(width: kSpace1 + 2),
+                Text(
+                  wording.typeLabel,
+                  style: const TextStyle(
+                    color: kOnPrimary,
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -196,47 +427,73 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     );
   }
 
+  /// Taymerning DOMINANT signali — HALQA, raqam emas.
+  ///
+  /// Shakl bir qarashda idrok qilinadi, raqam esa O'QILADI: harakatdagi
+  /// avtomobilda o'qishga vaqt yo'q. Avval markazdagi son kFontDisplay
+  /// (30) edi — ya'ni ekrandagi eng katta element sanoq raqami bo'lib,
+  /// TO'LOV bilan raqobatlashardi. Endi son yorliq o'lchamida, halqa
+  /// chizig'i esa qalinlashtirildi (5 → 8) — masofadan ko'rinadigan
+  /// yagona narsa halqaning qanchasi qolgani.
+  ///
+  /// Halqa + son ExcludeSemantics ichida: ekran o'quvchi pastdagi to'liq
+  /// jumlani o'qiydi, "45" ni ikki marta emas.
   Widget _buildCountdownTimer() {
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            AnimatedBuilder(
-              animation: _progressController,
-              builder: (context, _) => SizedBox(
-                width: 80,
-                height: 80,
-                child: CircularProgressIndicator(
-                  value: 1 - _progressController.value,
-                  strokeWidth: 5,
-                  backgroundColor: kSurface2,
-                  // Progress = interaktiv qatlam → kPrimary.
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _secondsLeft > 5 ? kPrimary : kError,
+    // Oxirgi 5 soniya — shoshilinch holat (haptik "tik" bilan bir xil chegara).
+    final isUrgent = _secondsLeft <= 5;
+    // Ota Column `crossAxisAlignment.start` bo'lgani uchun taymer chapga
+    // yopishib qolardi; Center uni to'lov kartasining o'qi bilan tenglashtiradi.
+    return Center(
+      child: Column(
+        children: [
+          ExcludeSemantics(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _progressController,
+                  builder: (context, _) => SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: CircularProgressIndicator(
+                      value: 1 - _progressController.value,
+                      strokeWidth: 8,
+                      backgroundColor: kSurface2,
+                      // Progress = interaktiv qatlam → kPrimary.
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isUrgent ? kError : kPrimary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                Text(
+                  '$_secondsLeft',
+                  style: TextStyle(
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w700,
+                    // Odatdagi holatda kInkMuted (5.47:1) — o'qilarli, lekin
+                    // to'lov raqami bilan raqobatlashmaydi.
+                    color: isUrgent ? kErrorDeep : kInkMuted,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              '$_secondsLeft',
-              style: TextStyle(
-                fontSize: kFontDisplay,
-                fontWeight: FontWeight.w800,
-                color: _secondsLeft > 5 ? kInk : kErrorDeep,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: kSpace2),
-        Text(
-          'Qabul qilish uchun $_secondsLeft soniya qoldi',
-          style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
-        ),
-      ],
+          ),
+          const SizedBox(height: kSpace2),
+          Text(
+            context.l10n.drvSecondsToAccept(_secondsLeft),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
+          ),
+        ],
+      ),
     );
   }
 
+  /// TO'LOV — ekrandagi eng katta element.
+  ///
+  /// Haydovchi taklifni bitta savol bilan baholaydi: "qancha?". Shu bois
+  /// summa kFontDisplay da yolg'iz qoladi (taymer raqami kichraytirildi) va
+  /// to'q yashil karta ustida oq matnda turadi — quyoshda ham o'qiladi.
   Widget _buildPriceCard(Order offer) {
     return Container(
       width: double.infinity,
@@ -249,7 +506,11 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       child: Column(
         children: [
           Text(
-            'Taxminiy daromad',
+            // Taksometr: summa safar oxirida yo'ldan hisoblanadi — bu yerda
+            // faqat tarif minimumi, "kamida" deb aniq aytiladi.
+            offer.isMetered
+                ? context.l10n.shMeterTitle
+                : context.l10n.drvEstimatedEarnings,
             style: TextStyle(
               fontSize: kFontLabel,
               color: kOnPrimary.withValues(alpha: 0.85),
@@ -257,11 +518,15 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
           ),
           const SizedBox(height: kSpace1),
           Text(
-            Formatters.formatPrice(offer.estimatedPrice),
-            style: const TextStyle(
-              fontSize: kFontDisplay,
+            offer.isMetered
+                ? context.l10n.shMeterAtLeast(Formatters.formatPrice(offer.estimatedPrice))
+                : Formatters.formatPrice(offer.estimatedPrice),
+            style: TextStyle(
+              // "kamida …" uzunroq — tor ekranda bitta qatorga sig'sin.
+              fontSize: offer.isMetered ? kFontH1 : kFontDisplay,
               fontWeight: FontWeight.w800,
               color: kOnPrimary,
+              height: 1.1,
             ),
           ),
         ],
@@ -269,7 +534,14 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     );
   }
 
-  Widget _buildRouteInfo(Order offer) {
+  /// Qaror tartibi: avval "borishga arziydimi" (MASOFA), keyin "qayerga"
+  /// (manzillar).
+  ///
+  /// Olish masofasi avval ekranning eng pastida, tugmalar ustida turardi —
+  /// haydovchi uni qidirishga majbur edi, holbuki taklifni rad etish yoki
+  /// qabul qilish aynan shu raqamga bog'liq. Endi u marshrut kartasining
+  /// BOSHIDA: masofa → ajratkich → olish nuqtasi → manzil.
+  Widget _buildRouteInfo(Order offer, DriverServiceWording wording) {
     return Container(
       padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
@@ -278,10 +550,17 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       ),
       child: Column(
         children: [
+          if (_distanceToPickup != null || _tripLength(offer) != null) ...[
+            _buildDistanceInfo(offer, wording),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: kSpace3),
+              child: Divider(height: 1, thickness: 1, color: kLineStrong),
+            ),
+          ],
           _buildRouteRow(
             Icons.radio_button_checked,
             kPrimary,
-            'Olish joyi',
+            wording.pickupTitle,
             offer.pickup.address,
           ),
           const Padding(
@@ -294,8 +573,8 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
           _buildRouteRow(
             Icons.location_on,
             kError,
-            'Manzil',
-            offer.dropoff.address,
+            wording.dropoffTitle,
+            offer.dropoffLabel,
           ),
         ],
       ),
@@ -341,92 +620,180 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     );
   }
 
-  Widget _buildDistanceInfo() {
+  /// Masofa — taklifni baholash RAQAMI, shuning uchun manzil matnidan katta
+  /// (kFontH3) va to'q siyohda. Yorliq ("Restorangacha", "Yo'lovchigacha")
+  /// ustida kichik va kInkMuted: u kontekst, raqam esa qarorning o'zi.
+  /// Ikonka yo'nalish ma'nosini beradi va yolg'iz qolmaydi.
+  Widget _buildDistanceInfo(Order offer, DriverServiceWording wording) {
+    final trip = _tripLength(offer);
     return Row(
       children: [
-        const ExcludeSemantics(
-          child: Icon(Icons.directions_car, color: kPrimary, size: 18),
-        ),
-        const SizedBox(width: kSpace2),
-        Text(
-          'Olish joyigacha: ${Formatters.formatDistance(_distanceToPickup!)}',
-          style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
-        ),
+        if (_distanceToPickup != null)
+          Expanded(
+            child: _buildFigure(
+              Icons.near_me_rounded,
+              wording.distanceToPickupLabel,
+              Formatters.formatDistance(_distanceToPickup!),
+            ),
+          ),
+        // Safarning o'zi — haydovchi taklifni faqat narxga qarab emas,
+        // "qancha yuraman" ga qarab ham tortadi. 18 000 so'mlik 2 km va
+        // 18 000 so'mlik 9 km — ikki xil taklif.
+        if (trip != null)
+          Expanded(
+            child: _buildFigure(
+              Icons.route_rounded,
+              context.l10n.drvTripLength,
+              trip,
+            ),
+          ),
       ],
     );
   }
 
+  /// "4.2 km · 11 daq". Taksometrda (manzil yo'q) va baholash kelmaganda
+  /// `null` — qator chizilmaydi.
+  String? _tripLength(Order offer) {
+    final km = offer.tripDistanceKm;
+    if (offer.isMetered || km == null || km <= 0) return null;
+    final distance = Formatters.formatDistance(km * 1000);
+    final minutes = offer.tripDurationMin;
+    return minutes == null || minutes <= 0
+        ? distance
+        : '$distance · ${Formatters.formatDuration(minutes)}';
+  }
+
+  Widget _buildFigure(IconData icon, String label, String value) {
+    return MergeSemantics(
+      child: Row(
+        children: [
+          ExcludeSemantics(child: Icon(icon, color: kPrimary, size: 20)),
+          const SizedBox(width: kSpace3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: kInkMuted,
+                    fontSize: kFontMicro,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                // Ikki ustunda "4.2 km · 14 daq" yarim kenglikka sig'masligi
+                // mumkin — kesilgan raqam (ellipsis) yolg'on, shuning uchun
+                // faqat sig'maganda kichraytiriladi.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: kInk,
+                      fontSize: kFontH3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ⚠️ XAVFSIZLIK: bu ikki amal TENG EMAS, shuning uchun teng ko'rinmaydi.
+  ///
+  /// Avval "Rad etish" va "Qabul qilish" bitta Row da, ikkalasi ham Expanded
+  /// va bir xil balandlikda (kControlHeight, 54) yonma-yon turardi. Harakatdagi
+  /// avtomobilda xato teginish buyurtmani RAD ETADI — bu qaytarib bo'lmaydigan
+  /// amal: taklif boshqa haydovchiga ketadi va daromad yo'qoladi. Qabul qilishda
+  /// xato teginishning narxi esa nolga yaqin (safar ekrani ochiladi).
+  ///
+  /// Shuning uchun:
+  ///   • Qabul qilish — TO'LIQ kenglik, kControlHeightDriver (64), to'ldirilgan
+  ///     kPrimary: ekrandagi eng katta va eng ko'rinadigan nishon;
+  ///   • Rad etish — PASTDA, alohida qatorda, tor va to'ldirilmagan.
+  ///     Balandligi kMinTapTargetDriver (56) — qo'lqopli barmoq uchun yetarli,
+  ///     lekin vizual og'irligi past va butun kenglikni egallamaydi;
+  ///   • orada kSpace4 (16dp) — buzg'unchi amal uchun talab qilingan 12dp dan
+  ///     ham keng, chunki bosh barmoq "Qabul qilish" ning pastki chetidan
+  ///     sirg'alib tushishi mumkin.
+  ///
+  /// Chegara rangi kError dan kLineInteractive ga o'zgartirildi: qizil ramka
+  /// e'tiborni tortadi, holbuki bu xohlanmagan amal. Avvalgi izohdagi qaror —
+  /// "xavf MATNI kErrorDeep (6.47:1), kError faqat chegara" — saqlanadi:
+  /// ma'no endi to'liq matn rangida, chegara esa neytral interaktiv chiziq.
   Widget _buildActionButtons(Order offer, DriverProvider provider) {
     final isLoading = provider.state == DriverProviderState.loading;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Semantics(
-            button: true,
-            enabled: !isLoading,
-            label: 'Rad etish',
-            excludeSemantics: true,
-            child: SizedBox(
-              height: kControlHeight,
-              child: OutlinedButton(
-                onPressed: isLoading ? null : () => _onDecline(offer),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: kError, width: 1.5),
-                  // Xavf MATNI kErrorDeep (6.47:1), kError faqat chegara.
-                  foregroundColor: kErrorDeep,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(kRadiusMd),
-                  ),
-                ),
-                child: const Text(
-                  'Rad etish',
-                  style: TextStyle(
-                    fontSize: kFontTitle,
-                    fontWeight: FontWeight.w700,
-                  ),
+        Semantics(
+          button: true,
+          enabled: !isLoading,
+          label: context.l10n.drvAccept,
+          value: isLoading ? context.l10n.drvLoading : null,
+          excludeSemantics: true,
+          child: SizedBox(
+            width: double.infinity,
+            height: kControlHeightDriver,
+            child: ElevatedButton(
+              onPressed: isLoading ? null : () => _onAccept(offer),
+              style: ElevatedButton.styleFrom(
+                // Oldin kSuccess (mint) + oq matn = 2.12:1 edi.
+                backgroundColor: kPrimary,
+                foregroundColor: kOnPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(kRadiusMd),
                 ),
               ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: kOnPrimary,
+                      ),
+                    )
+                  : Text(
+                      context.l10n.drvAccept,
+                      style: const TextStyle(
+                        fontSize: kFontH2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
             ),
           ),
         ),
-        const SizedBox(width: kSpace3),
-        Expanded(
-          flex: 2,
-          child: Semantics(
-            button: true,
-            enabled: !isLoading,
-            label: 'Qabul qilish',
-            value: isLoading ? 'Yuklanmoqda' : null,
-            excludeSemantics: true,
-            child: SizedBox(
-              height: kControlHeight,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : () => _onAccept(offer),
-                style: ElevatedButton.styleFrom(
-                  // Oldin kSuccess (mint) + oq matn = 2.12:1 edi.
-                  backgroundColor: kPrimary,
-                  foregroundColor: kOnPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(kRadiusMd),
-                  ),
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: kOnPrimary,
-                        ),
-                      )
-                    : const Text(
-                        'Qabul qilish',
-                        style: TextStyle(
-                          fontSize: kFontTitle,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+        const SizedBox(height: kSpace4),
+        Semantics(
+          button: true,
+          enabled: !isLoading,
+          label: context.l10n.drvDecline,
+          excludeSemantics: true,
+          child: TextButton(
+            onPressed: isLoading ? null : () => _onDecline(offer),
+            style: TextButton.styleFrom(
+              // Kenglik matnga qarab qisqaradi — nishon ataylab tor.
+              minimumSize: const Size(0, kMinTapTargetDriver),
+              padding: const EdgeInsets.symmetric(horizontal: kSpace6),
+              // Xavf MATNDA: kErrorDeep kSurface ustida 6.47:1.
+              foregroundColor: kErrorDeep,
+              side: const BorderSide(color: kLineInteractive),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(kRadiusMd),
+              ),
+            ),
+            child: Text(
+              context.l10n.drvDecline,
+              style: const TextStyle(
+                fontSize: kFontTitle,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

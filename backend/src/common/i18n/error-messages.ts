@@ -1,0 +1,104 @@
+import { ERROR_CATALOGUE, ErrorCatalogueEntry } from './error-catalogue';
+
+/** Ilova tillari. Standart — o'zbekcha. */
+export type AppLanguage = 'uz' | 'ru';
+
+/**
+ * `Accept-Language` sarlavhasidan til. Faqat BIRINCHI (eng ustun) til
+ * hisobga olinadi: brauzer "en-US,ru;q=0.9" yuborsa — ruscha emas.
+ */
+export function resolveLanguage(header: string | string[] | undefined): AppLanguage {
+  const raw = Array.isArray(header) ? header[0] : header;
+  const primary = (raw ?? '').split(',')[0].trim().toLowerCase();
+  return primary === 'ru' || primary.startsWith('ru-') ? 'ru' : 'uz';
+}
+
+/**
+ * Faqat bizning mijozlar yuboradigan ANIQ qiymat (`uz` yoki `ru`), aks holda
+ * `null`. Foydalanuvchining saqlangan tilini yangilash uchun: brauzerning
+ * o'zi qo'yadigan "ru-RU,ru;q=0.9,en;q=0.8" kabi sarlavha tanlov emas —
+ * u bilan tilni almashtirsak, odam tanlamagan tilda push oladi.
+ */
+export function explicitLanguage(header: string | string[] | undefined): AppLanguage | null {
+  const raw = (Array.isArray(header) ? header[0] : header)?.trim().toLowerCase();
+  return raw === 'uz' || raw === 'ru' ? raw : null;
+}
+
+interface CompiledEntry {
+  pattern: RegExp;
+  entry: ErrorCatalogueEntry;
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Doimiy xabarlar — to'g'ridan-to'g'ri qidiruv; o'zgaruvchililar — regex.
+const EXACT = new Map<string, ErrorCatalogueEntry>();
+const PATTERNS: CompiledEntry[] = [];
+for (const entry of ERROR_CATALOGUE) {
+  if (!/\{\d\}/.test(entry.source)) {
+    EXACT.set(entry.source, entry);
+    continue;
+  }
+  const body = entry.source
+    .split(/(\{\d\})/)
+    .map((part) => {
+      const slot = /^\{(\d)\}$/.exec(part);
+      if (!slot) return escapeRegExp(part);
+      return '(.+?)';
+    })
+    .join('');
+  PATTERNS.push({ pattern: new RegExp(`^${body}$`, 's'), entry });
+}
+
+const fill = (template: string, values: readonly string[]) =>
+  template.replace(/\{(\d)\}/g, (_, i: string) => values[Number(i)] ?? '');
+
+/**
+ * Xabarni tilga o'giradi. Lug'atda yo'q bo'lsa — o'zgarmay qaytadi.
+ * O'zgaruvchilar `{0}`, `{1}` manbadagi tartibda olinadi.
+ *
+ * O'zgaruvchi qiymati ham (`; ` bilan ajratilgan ro'yxat bo'lsa — har bir
+ * bo'lagi) lug'atdan qidiriladi: huquqiy darvoza xabari ichidagi sabablar va
+ * hujjat nomlari shu yo'l bilan ruschaga o'tadi. Chuqurlik cheklangan.
+ */
+export function localizeMessage(message: string, language: AppLanguage, depth = 0): string {
+  const exact = EXACT.get(message);
+  if (exact) return pick(exact, language) ?? message;
+
+  for (const { pattern, entry } of PATTERNS) {
+    const match = pattern.exec(message);
+    if (!match) continue;
+    const template = pick(entry, language);
+    if (!template) return message;
+    const values = sourceOrderedValues(entry.source, match).map((value) =>
+      depth < MAX_NESTING ? localizeList(value, language, depth + 1) : value,
+    );
+    return fill(template, values);
+  }
+  return message;
+}
+
+const MAX_NESTING = 3;
+const LIST_SEPARATOR = '; ';
+
+function localizeList(value: string | undefined, language: AppLanguage, depth: number): string {
+  if (value === undefined) return '';
+  return value
+    .split(LIST_SEPARATOR)
+    .map((part) => localizeMessage(part, language, depth))
+    .join(LIST_SEPARATOR);
+}
+
+function pick(entry: ErrorCatalogueEntry, language: AppLanguage): string | undefined {
+  return language === 'ru' ? entry.ru : entry.uz;
+}
+
+/** Regex guruhlarini `{n}` raqamlari bo'yicha joylaydi. */
+function sourceOrderedValues(source: string, match: RegExpExecArray): string[] {
+  const slots = [...source.matchAll(/\{(\d)\}/g)].map((m) => Number(m[1]));
+  const values: string[] = [];
+  slots.forEach((slot, i) => {
+    values[slot] = match[i + 1];
+  });
+  return values;
+}

@@ -6,12 +6,16 @@ class DemoData {
   DemoData._();
 
   // Angren city coordinates (matches AppConfig defaults).
-  static const double pickupLat = 40.1392;
-  static const double pickupLng = 69.1225;
-  static const double dropoffLat = 40.1521;
-  static const double dropoffLng = 69.1418;
-  static const double driverStartLat = 40.1331;
-  static const double driverStartLng = 69.1170;
+  //
+  // These were previously ~130 km off, in Tajikistan — the demo trip ran
+  // through empty mountains. The relative offsets between the three points
+  // are unchanged, so the demo route keeps its original shape.
+  static const double pickupLat = 41.0212;
+  static const double pickupLng = 70.0795;
+  static const double dropoffLat = 41.0341;
+  static const double dropoffLng = 70.0988;
+  static const double driverStartLat = 41.0151;
+  static const double driverStartLng = 70.0740;
 
   static const String pickupAddress = 'Angren shahar markazi';
   static const String dropoffAddress = 'Angren bozori';
@@ -52,38 +56,61 @@ class DemoData {
         'currentLng': driverStartLng,
       };
 
+  /// Daromad davri — backend `GET /orders/earnings/breakdown` shaklida.
+  static Map<String, dynamic> earningsPeriod({
+    required double gross,
+    required int trips,
+    double tips = 0,
+  }) {
+    final commission = (gross * 0.10).roundToDouble();
+    final tax = (gross * 0.01).roundToDouble();
+    final net = gross - commission - tax;
+    return {
+      'gross': gross,
+      'commission': commission,
+      'taxWithheld': tax,
+      'shiftPassCost': 0,
+      'net': net,
+      'trips': trips,
+      'tips': tips,
+      'netWithTips': net + tips,
+    };
+  }
+
   static List<Map<String, dynamic>> tariffs() => [
         {
           'id': 'tariff-econom',
           'name': 'Ekonom',
           'description': 'Arzon va tezkor',
-          'baseFare': 5000,
-          'perKmRate': 1800,
-          'minFare': 8000,
+          'basePrice': 5000,
+          'pricePerKm': 1800,
+          'minPrice': 8000,
           'iconName': 'economy',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
         {
           'id': 'tariff-komfort',
           'name': 'Komfort',
           'description': 'Yangi va qulay avtomobillar',
-          'baseFare': 8000,
-          'perKmRate': 2500,
-          'minFare': 12000,
+          'basePrice': 8000,
+          'pricePerKm': 2500,
+          // Ekonom bahosidan (≈13 000) yuqori — ro'yxatda "arzon tarif
+          // qimmatroq" ko'rinmasin.
+          'minPrice': 15000,
           'iconName': 'comfort',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
         {
           'id': 'tariff-biznes',
           'name': 'Biznes',
           'description': 'Premium darajadagi xizmat',
-          'baseFare': 15000,
-          'perKmRate': 4000,
-          'minFare': 25000,
+          'basePrice': 15000,
+          'pricePerKm': 4000,
+          'minPrice': 25000,
           'iconName': 'business',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
       ];
@@ -137,4 +164,161 @@ class DemoData {
           'durationMin': 12,
         },
       ];
+
+  // ---------------------------------------------------------------------
+  // Safar cheki — GET /orders/:id/receipt
+  // ---------------------------------------------------------------------
+
+  /// Chek javobi (`OrderReceiptDto`) — demo buyurtma xaritasidan yasaladi.
+  ///
+  /// NEGA UMUMAN KERAK: demo rejimda noma'lum yo'llar bo'sh `{}` bilan
+  /// javob berardi, ya'ni chek ekrani 0 so'mlik, manzilsiz, tarkibsiz
+  /// "hujjat" ko'rsatardi. Bo'sh chek — soxta ekran, va u demo ko'rsatuvda
+  /// mahsulot buzuq ekanini bildiradi.
+  static Map<String, dynamic> receipt(
+    Map<String, dynamic> order, {
+    double tipAmount = 0,
+  }) {
+    final id = (order['id'] as String?) ?? 'demo-order';
+    final total =
+        ((order['actualPrice'] ?? order['estimatedPrice']) as num?)?.toDouble() ??
+            0;
+    final distanceKm = (order['distanceKm'] as num?)?.toDouble() ?? 4.2;
+    final durationMin = (order['durationMin'] as num?)?.toInt() ?? 14;
+    final pickup = order['pickup'] as Map?;
+    final dropoff = order['dropoff'] as Map?;
+    final driverInfo = order['driver'] as Map?;
+
+    return {
+      'orderId': id,
+      // Backend UUID ning birinchi bo'lagini oladi; demo id lari
+      // "demo-order-h1" ko'rinishida, shuning uchun oxirgi bo'lak —
+      // aks holda hamma cheklarda bir xil "DEMO" turardi.
+      'orderNumber': id.split('-').last.toUpperCase(),
+      'completedAt': order['completedAt'] ??
+          DateTime.now().toUtc().toIso8601String(),
+      'serviceType': order['serviceType'] ?? 'taxi',
+      'pickupAddress': pickup?['address'] ?? pickupAddress,
+      'dropoffAddress': dropoff?['address'] ?? dropoffAddress,
+      'waypoints': const <Map<String, dynamic>>[],
+      'tariffId': order['tariffId'] ?? 'tariff-komfort',
+      'tariffName': 'Komfort',
+      'distanceKm': distanceKm,
+      'durationMin': durationMin,
+      'fare': _fare(
+        distanceKm: distanceKm,
+        durationMin: durationMin,
+        total: total,
+      ),
+      'surgeMultiplier': 1.0,
+      'grossPrice': total,
+      'discountAmount': 0,
+      'promoCode': null,
+      'tipAmount': tipAmount,
+      'total': total,
+      'paymentMethod': 'wallet',
+      'paymentStatus': 'completed',
+      'unpaidAmount': 0,
+      'driver': driverInfo == null
+          ? null
+          : {
+              // Demo haydovchi xaritasida bitta `name` maydoni bor; backend
+              // esa ism/familiyani birlashtirib yuboradi — ikkala shakl ham
+              // qo'llab-quvvatlanadi.
+              'name': driverInfo['name'] ??
+                  "${driverInfo['firstName'] ?? 'Haydovchi'} "
+                      "${driverInfo['lastName'] ?? ''}"
+                          .trim(),
+              'carModel': driverInfo['carModel'],
+              'carNumber': driverInfo['carNumber'],
+            },
+    };
+  }
+
+  /// Narx tarkibi.
+  ///
+  /// ⚠️ Backend invarianti demo'da ham buzilmaydi:
+  ///   asos + masofa + vaqt + eng kam haq + koeffitsient + chegara == jami.
+  /// Hisoblangan summa buyurtma narxidan farq qilsa, farq "eng kam haq"
+  /// (kam bo'lsa) yoki "yuqori narx chegarasi" (ko'p bo'lsa) qatoriga
+  /// yoziladi — soxta raqam qo'shilmaydi, qatorlar baribir jamiga qo'shiladi.
+  static Map<String, dynamic> _fare({
+    required double distanceKm,
+    required int durationMin,
+    required double total,
+  }) {
+    const baseFare = 8000.0;
+    const pricePerKm = 2500.0;
+    const pricePerMin = 300.0;
+
+    final distanceFare = distanceKm * pricePerKm;
+    final timeFare = durationMin * pricePerMin;
+    final gap = total - (baseFare + distanceFare + timeFare);
+
+    return {
+      'baseFare': baseFare,
+      'distanceKm': distanceKm,
+      'pricePerKm': pricePerKm,
+      'distanceFare': distanceFare,
+      'durationMin': durationMin,
+      'pricePerMin': pricePerMin,
+      'timeFare': timeFare,
+      'minPriceAdjustment': gap > 0 ? gap : 0.0,
+      'surgeMultiplier': 1.0,
+      'surgeFare': 0.0,
+      'maxPriceCap': gap < 0 ? gap : 0.0,
+      'total': total,
+    };
+  }
+
+  // ---- Super-app (ovqat / market) — ko'rsatuv uchun minimal katalog ----
+
+  static List<Map<String, dynamic>> restaurants() => [
+        {'id': 'demo-rest-1', 'name': 'Osh Markazi', 'address': 'Angren, Navoiy 12', 'status': 'open'},
+        {'id': 'demo-rest-2', 'name': 'Lavash House', 'address': 'Angren, Mustaqillik 4', 'status': 'open'},
+      ];
+
+  static Map<String, dynamic> restaurantDetail(String id) {
+    final restaurant = restaurants().firstWhere(
+      (r) => r['id'] == id,
+      orElse: () => restaurants().first,
+    );
+    return {
+      'restaurant': restaurant,
+      'categories': [
+        {'id': 'demo-cat-1', 'name': 'Asosiy taomlar'},
+      ],
+      'dishes': [
+        {'id': 'demo-dish-1', 'categoryId': 'demo-cat-1', 'name': 'Toshkent oshi', 'price': 35000},
+        {'id': 'demo-dish-2', 'categoryId': 'demo-cat-1', 'name': 'Lag\'mon', 'price': 30000},
+        {'id': 'demo-dish-3', 'categoryId': 'demo-cat-1', 'name': 'Somsa', 'price': 8000},
+      ],
+    };
+  }
+
+  static Map<String, dynamic> store() =>
+      {'id': 'demo-store-1', 'name': 'Angren Market', 'address': 'Angren, Bobur 3'};
+
+  static Map<String, dynamic> storeDetail() => {
+        'store': store(),
+        'categories': [
+          {'id': 'demo-mcat-1', 'name': 'Oziq-ovqat', 'emoji': '🥖'},
+        ],
+        'products': [
+          {'id': 'demo-p-1', 'categoryId': 'demo-mcat-1', 'name': 'Non', 'price': 4000, 'stock': 50},
+          {'id': 'demo-p-2', 'categoryId': 'demo-mcat-1', 'name': 'Sut 1 l', 'price': 12000, 'stock': 20},
+        ],
+      };
+
+  /// Trend lentasi va mahsulot qidiruvi — `{items, hasMore}`, har mahsulotda
+  /// do'koni (demo'da qidiruv so'rovi bo'yicha filtrlanmaydi).
+  static Map<String, dynamic> productFeed() => {
+        'items': [
+          for (final p in storeDetail()['products'] as List<Map<String, dynamic>>)
+            {...p, 'storeId': store()['id'], 'store': store()},
+        ],
+        'page': 1,
+        'limit': 20,
+        'hasMore': false,
+      };
 }

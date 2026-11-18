@@ -1,0 +1,74 @@
+{
+  "saReorderAction": "Yana buyurtma qilish",
+  "saReorderLoading": "Menyu tekshirilmoqda…",
+  "saReorderUnavailable": "Bu joy hozir buyurtma qabul qilmayapti",
+  "saReorderNothingAvailable": "Bu buyurtmadagi mahsulotlar hozir mavjud emas",
+  "saReorderPartial": "{count} ta mahsulot hozir yo'q yoki kamroq — qolganlari savatga qo'shildi",
+  "@saReorderPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saReorderReplaceTitle": "Savat almashtirilsinmi?",
+  "saReorderReplaceMessage": "Savatdagi joriy mahsulotlar o'chiriladi va o'rniga shu buyurtma qo'yiladi.",
+  "saReorderReplaceConfirm": "Almashtirish",
+  "saDialogCancel": "Bekor",
+  "saSaveAddressAction": "Saqlash",
+  "saSaveAddressTitle": "Manzilni saqlash",
+  "saSaveAddressHint": "Nomi, masalan: Uy",
+  "saAddressLabelHome": "Uy",
+  "saAddressLabelWork": "Ish",
+  "saAddressLabelParents": "Ota-onam",
+  "saAddressSaved": "Manzil saqlandi — keyingi safar bir bosishda tanlanadi",
+  "saAddressSaveFailed": "Manzilni saqlab bo'lmadi: {message}",
+  "@saAddressSaveFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saSave": "Saqlash",
+  "saDeliveryEta": "{min}–{max} daq",
+  "@saDeliveryEta": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "saFreeDeliveryFrom": "{amount} dan bepul yetkazish",
+  "@saFreeDeliveryFrom": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saFreeDeliveryRemaining": "Bepul yetkazishgacha yana {amount}",
+  "@saFreeDeliveryRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saFreeDeliveryReached": "Yetkazish bepul!",
+  "saDeliveryFree": "Bepul",
+  "saDeliveryInfoLabel": "Yetkazish {fee}, {eta}",
+  "@saDeliveryInfoLabel": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "eta": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Faqat YO'LOVCHI ilovasi (passenger flavor) — asosiy manifest bilan birlashtiriladi.
+
+     Fon joylashuvi xizmati faqat onlayn HAYDOVCHIGA kerak
+     (DriverProvider → LocationService.getPositionStream(background: …)).
+     Yo'lovchi ilovasida u qolsa, Play Console foreground service (location)
+     deklaratsiyasini video bilan so'raydi va ishlatilmayotgan ruxsat uchun
+     rad etadi. Shuning uchun ruxsatlar ham, geolocator plaginining xizmati
+     ham bu yerda olib tashlanadi. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
+        tools:node="remove" />
+
+    <application>
+        <service
+            android:name="com.baseflow.geolocator.GeolocatorLocationService"
+            tools:node="remove" />
+    </application>
+</manifest>

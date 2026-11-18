@@ -23,7 +23,6 @@ dependencies:
   socket_io_client: ^2.0.3+1
 
   # Maps
-  flutter_map: ^6.1.0
   latlong2: ^0.9.0
 
   # Location
@@ -39,14 +38,15 @@ dependencies:
   # Firebase
   firebase_core: ^2.27.0
   firebase_messaging: ^14.7.19
+  # Haqiqiy telefonlardagi ishga tushish vaqti va API so'rovlari davomiyligi
+  # (lib/core/network/performance_interceptor.dart).
+  firebase_performance: ^0.9.4+7
 
   # Utilities
   intl: ^0.20.2
   equatable: ^2.0.5
   get_it: ^7.6.7
-  uuid: ^4.3.3
   pin_code_fields: ^8.0.1
-  lottie: ^3.0.0
 
   # Premium UI: fonts + declarative micro-animations
   google_fonts: ^6.2.1
@@ -60,6 +60,19 @@ dependencies:
 
   # Calling the driver/passenger from the trip screen (tel: deep link)
   url_launcher: ^6.3.1
+  maplibre_gl: ^0.22.0
+
+  # Haydovchi navigatsiyasidagi pog'onali ovozli ko'rsatmalar.
+  # ⚠️ uz-UZ ovozi hamma qurilmada yo'q — VoiceGuide ishga tushganda
+  # mavjud tillarni tekshirib, uz-UZ → ru-RU → ovozsiz tartibida
+  # pasayadi (lib/core/location/voice_guide.dart).
+  flutter_tts: ^4.2.5
+  flutter_svg: ^2.2.3
+  permission_handler: ^11.3.1
+  cached_network_image: ^3.4.0
+  sentry_flutter: ^8.14.2
+  # Build raqami — majburiy yangilash tekshiruvi (lib/core/update).
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:
@@ -75,9 +88,24 @@ dev_dependencies:
   # Faking url_launcher's platform interface in widget tests (see
   # test/widget/driver_navigation_test.dart).
   url_launcher_platform_interface: ^2.3.2
+  sentry_dart_plugin: ^3.4.0
 
 flutter:
   uses-material-design: true
+  # UZ/RU matnlar lib/l10n/app_*.arb dan generatsiya qilinadi (l10n.yaml).
+  generate: true
   assets:
     - assets/images/
     - assets/animations/
+    - assets/map/
+    - assets/tariffs/
+    # Plus Jakarta Sans (OFL) — `GoogleFonts.config.allowRuntimeFetching`
+    # o'chirilgan, shrift faqat shu yerdan o'qiladi (main_*.dart).
+    - assets/google_fonts/
+    # Navigatsiya ovoz bo'laklari (tool/generate_voice_clips.py). Bo'sh bo'lsa
+    # ilova TTS bilan gapiradi.
+    # Faqat haydovchi ilovasi — yo'lovchi APK'siga ortiqcha 1.3 MB kirmaydi.
+    - path: assets/voice/uz/
+      flavors: [driver]
+    - path: assets/voice/ru/
+      flavors: [driver]

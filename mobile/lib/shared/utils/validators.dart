@@ -1,3 +1,5 @@
+import 'package:angren_taxi/l10n/l10n.dart';
+
 class Validators {
   Validators._();
 
@@ -5,42 +7,44 @@ class Validators {
 
   static String? validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Telefon raqamini kiriting';
+      return AppL10n.current.shValPhoneRequired;
     }
     final cleaned = value.replaceAll(' ', '').replaceAll('-', '');
     final regex = RegExp(_phonePattern);
     if (!regex.hasMatch(cleaned)) {
-      return 'Telefon raqami noto\'g\'ri (+998XXXXXXXXX)';
+      return AppL10n.current.shValPhoneInvalid;
     }
     return null;
   }
 
   static String? validateOtp(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Kodni kiriting';
+      return AppL10n.current.shValOtpRequired;
     }
     if (value.length != 6) {
-      return 'Kod 6 raqamdan iborat bo\'lishi kerak';
+      return AppL10n.current.shValOtpLength;
     }
     if (!RegExp(r'^\d{6}$').hasMatch(value)) {
-      return 'Faqat raqamlar kiriting';
+      return AppL10n.current.shValDigitsOnly;
     }
     return null;
   }
 
   static String? validateRequired(String? value, {String? fieldName}) {
     if (value == null || value.trim().isEmpty) {
-      return '${fieldName ?? "Bu maydon"} bo\'sh bo\'lmasligi kerak';
+      return fieldName == null
+          ? AppL10n.current.shValThisFieldRequired
+          : AppL10n.current.shValFieldRequired(fieldName);
     }
     return null;
   }
 
   static String? validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Ismni kiriting';
+      return AppL10n.current.shValNameRequired;
     }
     if (value.trim().length < 2) {
-      return 'Ism kamida 2 ta harfdan iborat bo\'lishi kerak';
+      return AppL10n.current.shValNameTooShort;
     }
     return null;
   }

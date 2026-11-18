@@ -1,108 +1,204 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import Link from 'next/link';
+import { cn } from './cn';
 
 /**
- * Angren Mint — ikki qatlamli brend modeli (docs/DESIGN-TOKENS.md §3.1/3.1b).
- *
- *   INTERAKTIV to'ldirish  → `bg-primary` (#0C7A4D) + `text-white` (5.38:1)
- *   AKSENT/dekorativ       → `bg-mint` (#1FCA8E) + `text-mint-on`
- *
- * Tugma har doim interaktiv, shuning uchun bu yerda `mint` FON sifatida
- * ishlatilmaydi — `bg-mint` + `text-white` atigi 2.12:1 beradi.
+ * Canonical variants: primary · secondary · ghost · danger · danger-ghost ·
+ * override (amber — deliberate human intervention ONLY) · link.
+ * Legacy aliases (kept so every panel compiles): default→primary,
+ * success→primary, destructive→danger, outline→secondary.
  */
-const buttonVariants = cva(
-  [
-    'inline-flex items-center justify-center whitespace-nowrap rounded-ds-md text-sm font-semibold',
-    'transition-colors duration-fast ease-standard',
-    // Fokus halqasi: 2px qalinlik + 2px offset (WCAG 2.4.7 / 1.4.11).
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-    'disabled:pointer-events-none disabled:opacity-50',
-  ].join(' '),
-  {
-    variants: {
-      variant: {
-        /** Asosiy harakat — to'q yashil fon, OQ matn. */
-        default: 'bg-primary text-white hover:bg-primary-hover active:bg-primary-pressed shadow-cta dark:bg-primary-on-dark dark:hover:bg-primary',
-        primary: 'bg-primary text-white hover:bg-primary-hover active:bg-primary-pressed shadow-cta dark:bg-primary-on-dark dark:hover:bg-primary',
-        destructive: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/40 hover:bg-danger/20 focus-visible:ring-danger',
-        danger: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/40 hover:bg-danger/20 focus-visible:ring-danger',
-        outline: 'border border-line bg-transparent text-muted hover:bg-surface-2 hover:border-line-strong hover:text-ink',
-        secondary: 'bg-surface-2 text-ink border border-line hover:bg-surface-3 hover:border-line-strong',
-        ghost: 'text-muted hover:bg-surface-2 hover:text-ink',
-        link: 'text-primary-text underline-offset-4 hover:underline',
-        /** Muvaffaqiyat = brend yashili, alohida yashil kiritilmaydi. */
-        success: 'bg-mint-tint text-primary-text border border-mint/40 hover:bg-mint/20',
-        /** Qo'lda aralashuv — amber faqat shu ma'no uchun. */
-        override: 'bg-override-tint text-override-dark dark:text-override-light border border-override/40 hover:bg-override/20 focus-visible:ring-override',
-      },
-      size: {
-        default: 'h-10 px-4 py-2 gap-2',
-        sm: 'h-8 rounded-ds-sm px-3 text-xs gap-1.5',
-        lg: 'h-12 px-8 text-base gap-2',
-        icon: 'h-10 w-10',
-        'icon-sm': 'h-8 w-8 rounded-ds-sm',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  }
-);
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'danger'
+  | 'danger-ghost'
+  | 'override'
+  | 'link'
+  | 'default'
+  | 'success'
+  | 'destructive'
+  | 'outline';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  isLoading?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+/** sm 28px · md 32px · lg 40px · icon 32□ · icon-sm 28□ · kitchen 44px touch. `default` = md. */
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm' | 'kitchen' | 'default';
+
+type CanonicalVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost' | 'override' | 'link';
+
+const VARIANT_ALIAS: Record<ButtonVariant, CanonicalVariant> = {
+  primary: 'primary',
+  secondary: 'secondary',
+  ghost: 'ghost',
+  danger: 'danger',
+  'danger-ghost': 'danger-ghost',
+  override: 'override',
+  link: 'link',
+  default: 'primary',
+  success: 'primary',
+  destructive: 'danger',
+  outline: 'secondary',
+};
+
+// No glow, no gradient. Hairline borders; fills only for primary/danger.
+const variantClasses: Record<CanonicalVariant, string> = {
+  primary:
+    'bg-primary text-white border border-primary hover:bg-primary-hover hover:border-primary-hover active:bg-primary-pressed dark:bg-primary-on-dark dark:border-primary-on-dark dark:hover:bg-primary',
+  secondary:
+    'bg-surface text-ink border border-line hover:bg-surface-2 hover:border-line-strong active:bg-surface-3 shadow-[0_1px_1px_rgb(15_27_34/0.04)]',
+  ghost: 'bg-transparent text-muted border border-transparent hover:bg-surface-2 hover:text-ink active:bg-surface-3',
+  danger:
+    'bg-danger-dark text-white border border-danger-dark hover:bg-[#991B1B] hover:border-[#991B1B] dark:bg-danger dark:border-danger',
+  'danger-ghost':
+    'bg-transparent text-danger-dark dark:text-danger-light border border-transparent hover:bg-danger-tint',
+  override:
+    'bg-override-tint text-override-dark dark:text-override-light border border-override/50 hover:bg-override/20',
+  link: 'bg-transparent text-primary-text border border-transparent px-0 h-auto underline-offset-4 hover:underline',
+};
+
+const sizeClasses: Record<Exclude<ButtonSize, 'default'>, string> = {
+  sm: 'h-7 px-2.5 text-[13px] gap-1.5 rounded-ds-sm',
+  md: 'h-8 px-3 text-[13px] gap-1.5 rounded-ds-sm',
+  lg: 'h-10 px-4 text-sm gap-2 rounded-ds-sm',
+  icon: 'h-8 w-8 p-0 rounded-ds-sm',
+  'icon-sm': 'h-7 w-7 p-0 rounded-ds-sm',
+  kitchen: 'min-h-touch px-5 text-base gap-2 rounded-ds-md',
+};
+
+export interface ButtonVariantOptions {
+  variant?: ButtonVariant | null;
+  size?: ButtonSize | null;
+  fullWidth?: boolean;
+  className?: string;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+/** Class string for a button look (e.g. on a `<Link>`); cva-compatible call shape. */
+export function buttonVariants({
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
+  className,
+}: ButtonVariantOptions = {}): string {
+  const v = VARIANT_ALIAS[variant ?? 'primary'];
+  const s = !size || size === 'default' ? 'md' : size;
+  return cn(
+    'inline-flex items-center justify-center whitespace-nowrap font-medium select-none transition-colors',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+    'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none aria-disabled:opacity-50 aria-disabled:pointer-events-none',
+    '[&_svg]:shrink-0',
+    sizeClasses[s],
+    variantClasses[v],
+    fullWidth && 'w-full',
+    className
+  );
+}
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  isLoading?: boolean;
+  /** Alias of `isLoading`. */
+  loading?: boolean;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
+  fullWidth?: boolean;
+  /**
+   * Render as a link with the button look. App routes → Next.js `<Link>`;
+   * `tel:` / `mailto:` / `sms:` / `http(s)://` (or `external`) → plain `<a>`.
+   */
+  href?: string;
+  /** Force a plain `<a>` opening in a new tab (rel="noopener noreferrer"). */
+  external?: boolean;
+}
+
+const PLAIN_HREF = /^(tel:|mailto:|sms:|https?:\/\/)/i;
+
+function Spinner() {
+  return (
+    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { className, variant, size, isLoading, leftIcon, rightIcon, children, disabled, ...props },
+    {
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      loading = false,
+      leftIcon,
+      rightIcon,
+      fullWidth = false,
+      href,
+      external = false,
+      className,
+      disabled,
+      children,
+      type,
+      ...props
+    },
     ref
   ) => {
+    const busy = isLoading || loading;
+    const classes = buttonVariants({ variant, size, fullWidth, className });
+    const content = (
+      <>
+        {busy ? <Spinner /> : leftIcon ? <span className="inline-flex shrink-0">{leftIcon}</span> : null}
+        {children}
+        {!busy && rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
+      </>
+    );
+
+    if (href && !disabled && (external || PLAIN_HREF.test(href))) {
+      const newTab = external || /^https?:/i.test(href);
+      return (
+        <a
+          href={href}
+          className={classes}
+          aria-label={props['aria-label']}
+          title={props.title}
+          onClick={props.onClick as never}
+          target={newTab ? '_blank' : undefined}
+          rel={newTab ? 'noopener noreferrer' : undefined}
+        >
+          {content}
+        </a>
+      );
+    }
+
+    if (href && !disabled) {
+      return (
+        <Link
+          href={href}
+          className={classes}
+          aria-label={props['aria-label']}
+          title={props.title}
+          onClick={props.onClick as never}
+        >
+          {content}
+        </Link>
+      );
+    }
+
     return (
       <button
-        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        disabled={disabled || isLoading}
-        aria-busy={isLoading || undefined}
+        type={type}
+        disabled={disabled || busy}
+        aria-busy={busy || undefined}
+        className={classes}
         {...props}
       >
-        {isLoading ? (
-          <svg
-            className="h-4 w-4 shrink-0 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-        ) : (
-          leftIcon && <span className="shrink-0">{leftIcon}</span>
-        )}
-        {children}
-        {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
+        {content}
       </button>
     );
   }
 );
+
 Button.displayName = 'Button';
 
-export { Button, buttonVariants };
+export { Button };
