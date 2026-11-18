@@ -40,7 +40,8 @@ tugaganda yo'l haqi avtomatik yechiladi.
 | `payme-subscribe.client.ts` (`cards.check/remove`, `receipts.create/pay/check/cancel`) | ✅ — formatlar sandbox'da TASDIQLANMAGAN |
 | `SavedCardsService` + `GET/POST/PATCH/DELETE /payments/cards`, `GET /payments/cards/availability` | ✅ |
 | `CardAutoChargeService` — `completeTrip` dan keyin (kutmasdan), reconcile cron | ✅ |
-| Mobil: karta bog'lash ekrani (Payme `cards.*` to'g'ridan), kartalar ro'yxati, tarifda karta tanlash | ⏳ keyingi bosqich |
+| Mobil: `AddCardScreen` (Payme `cards.*` to'g'ridan), `CardsScreen`, hamyondagi blok, tarifda "Karta •• 6311" | ✅ 2026-11-11 |
+| Mobil: buyurtma `paymentMethod: card` — FAQAT asosiy karta bo'lsa (ilgari ilova `paymentMethod` ni umuman yubormasdi — har safar naqd yozilardi) | ✅ |
 | **Qarz darvozasi:** rad etilgan karta to'lovi yangi buyurtmani to'smaydi (`outstandingWalletDebt` faqat WALLET) | ⏳ keyingi bosqich — `todo.md` dagi ochiq muammo bilan birga |
 | **Hold** (buyurtma vaqtida summani bloklash) | ❓ Payme qo'llab-quvvatlashi tasdiqlanmagan — shartnomada so'rash |
 | Click `card_token` | ⏳ Payme ishlagandan keyin |

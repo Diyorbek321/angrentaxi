@@ -1,3 +1,5 @@
+import 'package:angren_taxi/features/payments/screens/cards_screen.dart';
+import 'package:angren_taxi/features/payments/state/saved_cards_provider.dart';
 import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:angren_taxi/features/superapp/screens/topup_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
@@ -49,6 +51,8 @@ class _WalletScreenState extends State<WalletScreen> {
       superapp.loadWalletBalance();
       superapp.loadTransactions();
       superapp.loadWalletDebt();
+      // Saqlangan kartalar — provider yo'q (testlar) bo'lsa jim o'tadi.
+      context.read<SavedCardsProvider?>()?.load();
     });
   }
 
@@ -103,11 +107,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: kSpace6),
                 AgSectionTitle(context.l10n.saWalletCards),
                 const SizedBox(height: kSpace3),
-                // Saved cards need a Payme/Click merchant agreement before a
-                // card can be bound and charged. Until then the screen says so
-                // plainly instead of showing two invented cards ("Uzcard 8600
-                // •••• 4421") that belonged to nobody and could not be used.
-                const _CardsUnavailableNotice(),
+                // Karta bog'lash Payme Subscribe kaliti bilan yoqiladi. Unga
+                // qadar ekran buni ochiq aytadi — hech kimga tegishli bo'lmagan
+                // soxta kartalar ko'rsatilmaydi.
+                const _SavedCardsSection(),
                 const SizedBox(height: kSpace6),
                 AgSectionTitle(context.l10n.saWalletRecentActivity),
                 const SizedBox(height: 2),
@@ -377,6 +380,54 @@ class _BalanceCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hamyondagi "Kartalar" bloki: asosiy karta + boshqarish, yoki bog'lash
+/// taklifi, yoki (funksiya o'chiq) "hali mavjud emas" xabari.
+class _SavedCardsSection extends StatelessWidget {
+  const _SavedCardsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = context.watch<SavedCardsProvider?>();
+    if (cards == null || !cards.isEnabled) return const _CardsUnavailableNotice();
+
+    final l10n = context.l10n;
+    final defaultCard = cards.defaultCard;
+    void openCards() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const CardsScreen()),
+        );
+
+    return AgSurfaceCard(
+      padding: const EdgeInsets.symmetric(vertical: kSpace2),
+      child: Column(
+        children: [
+          if (defaultCard != null)
+            SavedCardTile(card: defaultCard)
+          else
+            ListTile(
+              leading: const ExcludeSemantics(child: Icon(Icons.add_card_rounded, color: agPrimary)),
+              title: Text(
+                l10n.saWalletCardsNoneTitle,
+                style: const TextStyle(fontWeight: FontWeight.w700, color: agText, fontSize: kFontBody),
+              ),
+              subtitle: Text(l10n.saWalletCardsNoneMessage, style: const TextStyle(color: agSubtle)),
+              onTap: () => openAddCard(context),
+            ),
+          const Divider(height: 1, color: agDivider),
+          ListTile(
+            key: const Key('wallet-cards-manage'),
+            title: Text(
+              defaultCard == null ? l10n.cardsAdd : l10n.saWalletCardsManage,
+              style: const TextStyle(fontWeight: FontWeight.w700, color: agGreenText),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded, color: agMuted),
+            onTap: defaultCard == null ? () => openAddCard(context) : openCards,
           ),
         ],
       ),

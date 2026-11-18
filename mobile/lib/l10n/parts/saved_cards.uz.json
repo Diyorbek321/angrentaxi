@@ -1,0 +1,88 @@
+{
+  "cardsTitle": "Mening kartalarim",
+  "cardsAdd": "Karta qo'shish",
+  "cardsEmptyTitle": "Hali karta yo'q",
+  "cardsEmptyMessage": "Kartani bir marta bog'lang — safar tugaganda yo'l haqi o'zi yechiladi.",
+  "cardsAutoChargeNote": "Karta bilan safarlarda yo'l haqi asosiy kartadan avtomatik yechiladi.",
+  "cardsDefaultBadge": "Asosiy",
+  "cardsMakeDefault": "Asosiy qilish",
+  "cardsRemove": "O'chirish",
+  "cardsRemoveConfirmTitle": "Kartani o'chirasizmi?",
+  "cardsRemoveConfirmMessage": "{card} endi to'lov uchun ishlatilmaydi.",
+  "@cardsRemoveConfirmMessage": {
+    "placeholders": {
+      "card": {
+        "type": "String"
+      }
+    }
+  },
+  "cardsCancel": "Bekor qilish",
+  "cardsLoadFailed": "Kartalarni yuklab bo'lmadi",
+  "cardsRetry": "Qayta urinish",
+  "cardsActionFailed": "Bajarib bo'lmadi: {reason}",
+  "@cardsActionFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "cardsErrInvalid": "Karta tasdiqlanmadi. Qaytadan urinib ko'ring.",
+  "cardsErrLimit": "Ko'pi bilan {max} ta karta bog'lash mumkin.",
+  "@cardsErrLimit": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "cardsErrUnavailable": "Karta bog'lash hozircha mavjud emas.",
+  "addCardTitle": "Karta qo'shish",
+  "addCardNumberLabel": "Karta raqami",
+  "addCardExpiryLabel": "Amal qilish muddati (OO/YY)",
+  "addCardNumberInvalid": "16 xonali karta raqamini kiriting",
+  "addCardExpiryInvalid": "Muddatni OO/YY ko'rinishida kiriting",
+  "addCardContinue": "Davom etish",
+  "addCardSecureNote": "Karta ma'lumotlari to'g'ridan-to'g'ri Payme'ga yuboriladi. Angren Taxi karta raqamini saqlamaydi.",
+  "addCardCodeTitle": "SMS kodni kiriting",
+  "addCardCodeSentTo": "Kod {phone} raqamiga yuborildi",
+  "@addCardCodeSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "addCardCodeLabel": "SMS kod",
+  "addCardCodeInvalid": "Kodni kiriting",
+  "addCardConfirm": "Tasdiqlash",
+  "addCardResend": "Kodni qayta yuborish",
+  "addCardResendIn": "Qayta yuborish: {seconds} s",
+  "@addCardResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "addCardSuccess": "Karta qo'shildi",
+  "saWalletCardsManage": "Kartalarni boshqarish",
+  "saWalletCardsNoneTitle": "Karta bog'lanmagan",
+  "saWalletCardsNoneMessage": "Bog'lang — safar oxirida yo'l haqi avtomatik yechiladi.",
+  "paxCardChip": "Karta •• {lastFour}",
+  "@paxCardChip": {
+    "placeholders": {
+      "lastFour": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCardAutoChargeHint": "Safar tugaganda yo'l haqi {card} kartadan yechiladi.",
+  "@paxCardAutoChargeHint": {
+    "placeholders": {
+      "card": {
+        "type": "String"
+      }
+    }
+  }
+}

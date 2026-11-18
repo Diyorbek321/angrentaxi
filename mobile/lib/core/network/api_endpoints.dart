@@ -21,7 +21,6 @@ class ApiEndpoints {
   // from anywhere until the profile-edit screen below started using it.
   static const String userProfile = '/users/me';
   static const String updateProfile = '/users/me';
-  static const String paymentMethods = '/users/payment-methods';
 
   // Favorite addresses (passenger)
   static const String favoriteAddresses = '/users/favorite-addresses';
@@ -225,6 +224,13 @@ class ApiEndpoints {
   // Payments (Payme / Click / Uzcard online checkout)
   static const String paymentsInitiate = '/payments/initiate';
   static const String paymentsWallet = '/payments/wallet';
+
+  // Saqlangan kartalar (backend saved-cards.controller.ts). Karta raqami bu
+  // yerga KELMAYDI — faqat Payme bergan token (`SavedCardsService`).
+  static const String savedCards = '/payments/cards';
+  static const String savedCardsAvailability = '/payments/cards/availability';
+  static String savedCardById(String id) => '/payments/cards/$id';
+  static String savedCardDefault(String id) => '/payments/cards/$id/default';
 
   /// Customer-facing platform settings (support phone, delivery fee).
   static const String settingsPublic = '/settings/public';

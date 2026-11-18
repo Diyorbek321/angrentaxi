@@ -76,6 +76,18 @@ abstract final class ApiErrorCode {
 
   /// 409 — e'tiroz mumkin emas; `details: { reason }`.
   static const incidentAppealNotAllowed = 'INCIDENT_APPEAL_NOT_ALLOWED';
+
+  /// 400 — karta bog'lash o'chiq (kalitlar yo'q yoki flag o'chiq).
+  static const savedCardsUnavailable = 'SAVED_CARDS_UNAVAILABLE';
+
+  /// 400 — Payme tokeni tasdiqlanmagan; `details: { reason }`.
+  static const savedCardInvalid = 'SAVED_CARD_INVALID';
+
+  /// 400 — kartalar soni chegarada; `details: { max }`.
+  static const savedCardLimit = 'SAVED_CARD_LIMIT';
+
+  /// 404 — karta topilmadi yoki sizniki emas.
+  static const savedCardNotFound = 'SAVED_CARD_NOT_FOUND';
 }
 
 /// `reasons[]` elementi.

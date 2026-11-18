@@ -13,10 +13,13 @@ import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/passenger/widgets/schedule_ride_sheet.dart';
 import 'package:angren_taxi/features/passenger/widgets/trip_options_sheet.dart';
+import 'package:angren_taxi/features/payments/screens/cards_screen.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
+import 'package:angren_taxi/features/payments/state/saved_cards_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
+import 'package:angren_taxi/shared/models/saved_card.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
@@ -237,6 +240,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
       final pickup = provider.pendingPickup;
       if (pickup != null) provider.loadNearbyDrivers(pickup.lat, pickup.lng);
       _loadRoute(provider);
+      // Saqlangan kartalar: "Karta" chipi asosiy kartani ko'rsatadi.
+      context.read<SavedCardsProvider?>()?.ensureLoaded();
     });
   }
 
@@ -316,8 +321,26 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     Navigator.of(context).pushNamedAndRemoveUntil('/passenger/home', (_) => false);
   }
 
+  /// Saqlangan kartalar yoqilgan va asosiy karta bor — karta safari serverga
+  /// `card` bo'lib ketadi va safar oxirida o'zi yechiladi (Yandex modeli).
+  SavedCard? get _autoChargeCard {
+    final cards = context.read<SavedCardsProvider?>();
+    if (_paymentMethod != _kOptionCard || cards == null || !cards.isEnabled) return null;
+    return cards.defaultCard;
+  }
+
   Future<void> _onConfirmOrder() async {
     final provider = context.read<OrderProvider>();
+    // Karta tanlangan, bog'lash yoqilgan, lekin karta yo'q (masalan o'chirilgan)
+    // — avval bog'laymiz; bog'lamasa buyurtma berilmaydi.
+    final cards = context.read<SavedCardsProvider?>();
+    if (_paymentMethod == _kOptionCard &&
+        (cards?.isEnabled ?? false) &&
+        cards?.defaultCard == null) {
+      final added = await openAddCard(context);
+      if (added == null || !mounted) return;
+    }
+    final autoChargeCard = _autoChargeCard;
     if (provider.selectedTariff == null && provider.tariffs.isNotEmpty) {
       provider.selectTariff(provider.tariffs.first);
     }
@@ -325,7 +348,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     // shoxlanish qarori UNDAN OLDIN olinadi.
     final wasScheduled = provider.isScheduledBooking;
     _submitting = true;
-    final success = await provider.createOrder();
+    // Saqlangan kartasiz `card` YUBORILMAYDI: aks holda server safarni karta
+    // deb yozadi-yu, yechadigan karta bo'lmaydi (eski oqim o'zgarmaydi).
+    final success = await provider.createOrder(
+      paymentMethod: autoChargeCard != null ? _kOptionCard : null,
+    );
     if (!mounted) return;
     if (!success) {
       _submitting = false;
@@ -373,7 +400,12 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     // wiring is real and ready to use the moment an order does qualify —
     // and so passengers get a clear message instead of silent failure if a
     // charge attempt is made too early.
-    if (_paymentMethod == 'card' && provider.activeOrder != null) {
+    if (autoChargeCard != null) {
+      // Pul safar oxirida server tomonda yechiladi — hech qanday sahifa yo'q.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.paxCardAutoChargeHint(autoChargeCard.maskedPan))),
+      );
+    } else if (_paymentMethod == 'card' && provider.activeOrder != null) {
       setState(() => _payingByCard = true);
       try {
         final result = await _paymentService.initiate(
@@ -1199,7 +1231,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           ),
           AgOptionChipItem(
             id: _kOptionCard,
-            label: context.l10n.paxPaymentCard,
+            label: _cardChipLabel(),
             icon: Icons.credit_card_rounded,
             active: _paymentMethod == _kOptionCard,
           ),
@@ -1233,10 +1265,28 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   /// Chip bosilishi. MANTIQ o'zgarmaydi: `cash`/`card` — `_paymentMethod`
   /// ning ayni o'sha qiymatlari (`_onConfirmOrder` shu satrni o'qiydi),
   /// uchinchisi esa avvalgidek rejalashtirish sheetini ochadi.
+  /// "Karta •• 6311" — asosiy karta bo'lsa; aks holda oddiy "Karta".
+  String _cardChipLabel() {
+    final cards = context.watch<SavedCardsProvider?>();
+    final card = (cards?.isEnabled ?? false) ? cards!.defaultCard : null;
+    return card == null ? context.l10n.paxPaymentCard : context.l10n.paxCardChip(card.lastFour);
+  }
+
+  /// Karta chipi: bog'lash yoqilgan-u karta yo'q — avval bog'lash ekrani.
+  Future<void> _selectCardPayment() async {
+    final cards = context.read<SavedCardsProvider?>();
+    if ((cards?.isEnabled ?? false) && cards?.defaultCard == null) {
+      final added = await openAddCard(context);
+      if (added == null || !mounted) return;
+    }
+    setState(() => _paymentMethod = _kOptionCard);
+  }
+
   void _onOptionTap(String id, OrderProvider provider) {
     switch (id) {
-      case _kOptionCash:
       case _kOptionCard:
+        _selectCardPayment();
+      case _kOptionCash:
         setState(() => _paymentMethod = id);
       case _kOptionSchedule:
         _pickScheduleTime(provider);

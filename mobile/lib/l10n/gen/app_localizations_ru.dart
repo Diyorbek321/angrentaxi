@@ -34,6 +34,56 @@ class AppLocalizationsRu extends AppLocalizations {
   String get accPrivacyPolicy => 'Политика конфиденциальности';
 
   @override
+  String get addCardCodeInvalid => 'Введите код';
+
+  @override
+  String get addCardCodeLabel => 'Код из SMS';
+
+  @override
+  String addCardCodeSentTo(String phone) {
+    return 'Код отправлен на номер $phone';
+  }
+
+  @override
+  String get addCardCodeTitle => 'Введите код из SMS';
+
+  @override
+  String get addCardConfirm => 'Подтвердить';
+
+  @override
+  String get addCardContinue => 'Продолжить';
+
+  @override
+  String get addCardExpiryInvalid => 'Введите срок в формате ММ/ГГ';
+
+  @override
+  String get addCardExpiryLabel => 'Срок действия (ММ/ГГ)';
+
+  @override
+  String get addCardNumberInvalid => 'Введите 16-значный номер карты';
+
+  @override
+  String get addCardNumberLabel => 'Номер карты';
+
+  @override
+  String get addCardResend => 'Отправить код снова';
+
+  @override
+  String addCardResendIn(int seconds) {
+    return 'Повторная отправка: $seconds с';
+  }
+
+  @override
+  String get addCardSecureNote =>
+      'Данные карты отправляются напрямую в Payme. Angren Taxi не хранит номер карты.';
+
+  @override
+  String get addCardSuccess => 'Карта добавлена';
+
+  @override
+  String get addCardTitle => 'Добавить карту';
+
+  @override
   String get appLanguage => 'Язык приложения';
 
   @override
@@ -43,6 +93,65 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get authWrongAppStaff =>
       'С этим номером в это приложение не войти. Аккаунт администратора работает только в панели управления; сотрудники и продавцы вызывают такси через приложение пассажира.';
+
+  @override
+  String cardsActionFailed(String reason) {
+    return 'Не удалось выполнить: $reason';
+  }
+
+  @override
+  String get cardsAdd => 'Добавить карту';
+
+  @override
+  String get cardsAutoChargeNote =>
+      'В поездках с оплатой картой сумма автоматически списывается с основной карты.';
+
+  @override
+  String get cardsCancel => 'Отмена';
+
+  @override
+  String get cardsDefaultBadge => 'Основная';
+
+  @override
+  String get cardsEmptyMessage =>
+      'Привяжите карту один раз — после поездки оплата спишется сама.';
+
+  @override
+  String get cardsEmptyTitle => 'Карт пока нет';
+
+  @override
+  String get cardsErrInvalid => 'Карта не подтверждена. Попробуйте ещё раз.';
+
+  @override
+  String cardsErrLimit(int max) {
+    return 'Можно привязать не более $max карт.';
+  }
+
+  @override
+  String get cardsErrUnavailable => 'Привязка карты пока недоступна.';
+
+  @override
+  String get cardsLoadFailed => 'Не удалось загрузить карты';
+
+  @override
+  String get cardsMakeDefault => 'Сделать основной';
+
+  @override
+  String get cardsRemove => 'Удалить';
+
+  @override
+  String cardsRemoveConfirmMessage(String card) {
+    return '$card больше не будет использоваться для оплаты.';
+  }
+
+  @override
+  String get cardsRemoveConfirmTitle => 'Удалить карту?';
+
+  @override
+  String get cardsRetry => 'Повторить';
+
+  @override
+  String get cardsTitle => 'Мои карты';
 
   @override
   String get commonCancel => 'Отмена';
@@ -2813,6 +2922,16 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String paxCardAutoChargeHint(String card) {
+    return 'После поездки оплата спишется с карты $card.';
+  }
+
+  @override
+  String paxCardChip(String lastFour) {
+    return 'Карта •• $lastFour';
+  }
+
+  @override
   String paxCardPaymentStartFailed(String error) {
     return 'Не удалось начать оплату: $error. Заказ принят, оплата пройдёт в конце поездки.';
   }
@@ -4883,6 +5002,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saWalletCards => 'Карты';
+
+  @override
+  String get saWalletCardsManage => 'Управление картами';
+
+  @override
+  String get saWalletCardsNoneMessage =>
+      'Привяжите — после поездки оплата спишется автоматически.';
+
+  @override
+  String get saWalletCardsNoneTitle => 'Карта не привязана';
 
   @override
   String get saWalletCardsUnavailableMessage =>

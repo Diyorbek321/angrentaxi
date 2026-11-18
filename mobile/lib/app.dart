@@ -47,6 +47,7 @@ import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
     as passenger_profile;
 import 'package:angren_taxi/features/passenger/screens/scheduled_orders_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
+import 'package:angren_taxi/features/payments/state/saved_cards_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/main_shell.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
@@ -121,6 +122,11 @@ class AngrenTaxiApp extends StatelessWidget {
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<SuperappProvider>(
             create: (_) => buildSuperappProvider(),
+          ),
+        // Saqlangan kartalar (docs/specs/saqlangan-kartalar.md v2).
+        if (flavor == AppFlavor.passenger)
+          ChangeNotifierProvider<SavedCardsProvider>(
+            create: (_) => buildSavedCardsProvider(),
           ),
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<MarketProvider>(

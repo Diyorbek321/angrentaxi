@@ -489,7 +489,9 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createOrder() async {
+  /// [paymentMethod] — `'card'` faqat saqlangan karta bog'langan bo'lsa
+  /// (server safar oxirida o'zi yechadi). `null` — server standarti (naqd).
+  Future<bool> createOrder({String? paymentMethod}) async {
     if (_pendingPickup == null ||
         (_pendingDropoff == null && !_isMetered) ||
         _selectedTariff == null) {
@@ -543,6 +545,7 @@ class OrderProvider extends ChangeNotifier {
             'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
           if (_tripOptions.isNotEmpty)
             'options': _tripOptions.map((o) => o.apiValue).toList(),
+          if (paymentMethod != null) 'paymentMethod': paymentMethod,
       };
       return _submitOrder(body);
     } catch (e) {

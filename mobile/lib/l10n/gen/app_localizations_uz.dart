@@ -34,6 +34,56 @@ class AppLocalizationsUz extends AppLocalizations {
   String get accPrivacyPolicy => 'Maxfiylik siyosati';
 
   @override
+  String get addCardCodeInvalid => 'Kodni kiriting';
+
+  @override
+  String get addCardCodeLabel => 'SMS kod';
+
+  @override
+  String addCardCodeSentTo(String phone) {
+    return 'Kod $phone raqamiga yuborildi';
+  }
+
+  @override
+  String get addCardCodeTitle => 'SMS kodni kiriting';
+
+  @override
+  String get addCardConfirm => 'Tasdiqlash';
+
+  @override
+  String get addCardContinue => 'Davom etish';
+
+  @override
+  String get addCardExpiryInvalid => 'Muddatni OO/YY ko\'rinishida kiriting';
+
+  @override
+  String get addCardExpiryLabel => 'Amal qilish muddati (OO/YY)';
+
+  @override
+  String get addCardNumberInvalid => '16 xonali karta raqamini kiriting';
+
+  @override
+  String get addCardNumberLabel => 'Karta raqami';
+
+  @override
+  String get addCardResend => 'Kodni qayta yuborish';
+
+  @override
+  String addCardResendIn(int seconds) {
+    return 'Qayta yuborish: $seconds s';
+  }
+
+  @override
+  String get addCardSecureNote =>
+      'Karta ma\'lumotlari to\'g\'ridan-to\'g\'ri Payme\'ga yuboriladi. Angren Taxi karta raqamini saqlamaydi.';
+
+  @override
+  String get addCardSuccess => 'Karta qo\'shildi';
+
+  @override
+  String get addCardTitle => 'Karta qo\'shish';
+
+  @override
   String get appLanguage => 'Ilova tili';
 
   @override
@@ -43,6 +93,66 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get authWrongAppStaff =>
       'Bu raqam bilan bu ilovaga kirib bo\'lmaydi. Admin hisobi faqat boshqaruv panelida ishlaydi; xodim va sotuvchi taksini yo\'lovchi ilovasidan chaqiradi.';
+
+  @override
+  String cardsActionFailed(String reason) {
+    return 'Bajarib bo\'lmadi: $reason';
+  }
+
+  @override
+  String get cardsAdd => 'Karta qo\'shish';
+
+  @override
+  String get cardsAutoChargeNote =>
+      'Karta bilan safarlarda yo\'l haqi asosiy kartadan avtomatik yechiladi.';
+
+  @override
+  String get cardsCancel => 'Bekor qilish';
+
+  @override
+  String get cardsDefaultBadge => 'Asosiy';
+
+  @override
+  String get cardsEmptyMessage =>
+      'Kartani bir marta bog\'lang — safar tugaganda yo\'l haqi o\'zi yechiladi.';
+
+  @override
+  String get cardsEmptyTitle => 'Hali karta yo\'q';
+
+  @override
+  String get cardsErrInvalid =>
+      'Karta tasdiqlanmadi. Qaytadan urinib ko\'ring.';
+
+  @override
+  String cardsErrLimit(int max) {
+    return 'Ko\'pi bilan $max ta karta bog\'lash mumkin.';
+  }
+
+  @override
+  String get cardsErrUnavailable => 'Karta bog\'lash hozircha mavjud emas.';
+
+  @override
+  String get cardsLoadFailed => 'Kartalarni yuklab bo\'lmadi';
+
+  @override
+  String get cardsMakeDefault => 'Asosiy qilish';
+
+  @override
+  String get cardsRemove => 'O\'chirish';
+
+  @override
+  String cardsRemoveConfirmMessage(String card) {
+    return '$card endi to\'lov uchun ishlatilmaydi.';
+  }
+
+  @override
+  String get cardsRemoveConfirmTitle => 'Kartani o\'chirasizmi?';
+
+  @override
+  String get cardsRetry => 'Qayta urinish';
+
+  @override
+  String get cardsTitle => 'Mening kartalarim';
 
   @override
   String get commonCancel => 'Bekor qilish';
@@ -2822,6 +2932,16 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String paxCardAutoChargeHint(String card) {
+    return 'Safar tugaganda yo\'l haqi $card kartadan yechiladi.';
+  }
+
+  @override
+  String paxCardChip(String lastFour) {
+    return 'Karta •• $lastFour';
+  }
+
+  @override
   String paxCardPaymentStartFailed(String error) {
     return 'To\'lovni hozir boshlab bo\'lmadi: $error. Buyurtma qabul qilindi, safar oxirida to\'lov amalga oshiriladi.';
   }
@@ -4893,6 +5013,16 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saWalletCards => 'Kartalar';
+
+  @override
+  String get saWalletCardsManage => 'Kartalarni boshqarish';
+
+  @override
+  String get saWalletCardsNoneMessage =>
+      'Bog\'lang — safar oxirida yo\'l haqi avtomatik yechiladi.';
+
+  @override
+  String get saWalletCardsNoneTitle => 'Karta bog\'lanmagan';
 
   @override
   String get saWalletCardsUnavailableMessage =>

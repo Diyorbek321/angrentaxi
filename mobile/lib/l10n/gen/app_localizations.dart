@@ -146,6 +146,96 @@ abstract class AppLocalizations {
   /// **'Maxfiylik siyosati'**
   String get accPrivacyPolicy;
 
+  /// No description provided for @addCardCodeInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kodni kiriting'**
+  String get addCardCodeInvalid;
+
+  /// No description provided for @addCardCodeLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'SMS kod'**
+  String get addCardCodeLabel;
+
+  /// No description provided for @addCardCodeSentTo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kod {phone} raqamiga yuborildi'**
+  String addCardCodeSentTo(String phone);
+
+  /// No description provided for @addCardCodeTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'SMS kodni kiriting'**
+  String get addCardCodeTitle;
+
+  /// No description provided for @addCardConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tasdiqlash'**
+  String get addCardConfirm;
+
+  /// No description provided for @addCardContinue.
+  ///
+  /// In uz, this message translates to:
+  /// **'Davom etish'**
+  String get addCardContinue;
+
+  /// No description provided for @addCardExpiryInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Muddatni OO/YY ko\'rinishida kiriting'**
+  String get addCardExpiryInvalid;
+
+  /// No description provided for @addCardExpiryLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Amal qilish muddati (OO/YY)'**
+  String get addCardExpiryLabel;
+
+  /// No description provided for @addCardNumberInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'16 xonali karta raqamini kiriting'**
+  String get addCardNumberInvalid;
+
+  /// No description provided for @addCardNumberLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta raqami'**
+  String get addCardNumberLabel;
+
+  /// No description provided for @addCardResend.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kodni qayta yuborish'**
+  String get addCardResend;
+
+  /// No description provided for @addCardResendIn.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta yuborish: {seconds} s'**
+  String addCardResendIn(int seconds);
+
+  /// No description provided for @addCardSecureNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta ma\'lumotlari to\'g\'ridan-to\'g\'ri Payme\'ga yuboriladi. Angren Taxi karta raqamini saqlamaydi.'**
+  String get addCardSecureNote;
+
+  /// No description provided for @addCardSuccess.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta qo\'shildi'**
+  String get addCardSuccess;
+
+  /// No description provided for @addCardTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta qo\'shish'**
+  String get addCardTitle;
+
   /// No description provided for @appLanguage.
   ///
   /// In uz, this message translates to:
@@ -163,6 +253,108 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Bu raqam bilan bu ilovaga kirib bo\'lmaydi. Admin hisobi faqat boshqaruv panelida ishlaydi; xodim va sotuvchi taksini yo\'lovchi ilovasidan chaqiradi.'**
   String get authWrongAppStaff;
+
+  /// No description provided for @cardsActionFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bajarib bo\'lmadi: {reason}'**
+  String cardsActionFailed(String reason);
+
+  /// No description provided for @cardsAdd.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta qo\'shish'**
+  String get cardsAdd;
+
+  /// No description provided for @cardsAutoChargeNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta bilan safarlarda yo\'l haqi asosiy kartadan avtomatik yechiladi.'**
+  String get cardsAutoChargeNote;
+
+  /// No description provided for @cardsCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilish'**
+  String get cardsCancel;
+
+  /// No description provided for @cardsDefaultBadge.
+  ///
+  /// In uz, this message translates to:
+  /// **'Asosiy'**
+  String get cardsDefaultBadge;
+
+  /// No description provided for @cardsEmptyMessage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartani bir marta bog\'lang — safar tugaganda yo\'l haqi o\'zi yechiladi.'**
+  String get cardsEmptyMessage;
+
+  /// No description provided for @cardsEmptyTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali karta yo\'q'**
+  String get cardsEmptyTitle;
+
+  /// No description provided for @cardsErrInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta tasdiqlanmadi. Qaytadan urinib ko\'ring.'**
+  String get cardsErrInvalid;
+
+  /// No description provided for @cardsErrLimit.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ko\'pi bilan {max} ta karta bog\'lash mumkin.'**
+  String cardsErrLimit(int max);
+
+  /// No description provided for @cardsErrUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta bog\'lash hozircha mavjud emas.'**
+  String get cardsErrUnavailable;
+
+  /// No description provided for @cardsLoadFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartalarni yuklab bo\'lmadi'**
+  String get cardsLoadFailed;
+
+  /// No description provided for @cardsMakeDefault.
+  ///
+  /// In uz, this message translates to:
+  /// **'Asosiy qilish'**
+  String get cardsMakeDefault;
+
+  /// No description provided for @cardsRemove.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'chirish'**
+  String get cardsRemove;
+
+  /// No description provided for @cardsRemoveConfirmMessage.
+  ///
+  /// In uz, this message translates to:
+  /// **'{card} endi to\'lov uchun ishlatilmaydi.'**
+  String cardsRemoveConfirmMessage(String card);
+
+  /// No description provided for @cardsRemoveConfirmTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartani o\'chirasizmi?'**
+  String get cardsRemoveConfirmTitle;
+
+  /// No description provided for @cardsRetry.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta urinish'**
+  String get cardsRetry;
+
+  /// No description provided for @cardsTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mening kartalarim'**
+  String get cardsTitle;
 
   /// No description provided for @commonCancel.
   ///
@@ -4994,6 +5186,18 @@ abstract class AppLocalizations {
   /// **'Ha, {fee} to\'layman'**
   String paxCancelWithFee(String fee);
 
+  /// No description provided for @paxCardAutoChargeHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar tugaganda yo\'l haqi {card} kartadan yechiladi.'**
+  String paxCardAutoChargeHint(String card);
+
+  /// No description provided for @paxCardChip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta •• {lastFour}'**
+  String paxCardChip(String lastFour);
+
   /// No description provided for @paxCardPaymentStartFailed.
   ///
   /// In uz, this message translates to:
@@ -8636,6 +8840,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Kartalar'**
   String get saWalletCards;
+
+  /// No description provided for @saWalletCardsManage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartalarni boshqarish'**
+  String get saWalletCardsManage;
+
+  /// No description provided for @saWalletCardsNoneMessage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bog\'lang — safar oxirida yo\'l haqi avtomatik yechiladi.'**
+  String get saWalletCardsNoneMessage;
+
+  /// No description provided for @saWalletCardsNoneTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta bog\'lanmagan'**
+  String get saWalletCardsNoneTitle;
 
   /// No description provided for @saWalletCardsUnavailableMessage.
   ///
