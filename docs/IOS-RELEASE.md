@@ -71,6 +71,13 @@ O'z iPhone'ingizga TestFlight ilovasi orqali o'rnating va tekshiring:
 App Store Connect'da formalarni `mobile/store/APP-STORE.md` bo'yicha to'ldiring,
 skrinshotlar (6.7" va 6.5" iPhone) yuklang → **Submit for Review**. Odatda 1–3 kun.
 
+Skrinshotlar (Mac + simulyator): `flutter run -d <iPhone simulyator> -t tool/store_screenshots.dart
+--dart-define=DEMO_MODE=true` — demo rejimda avtomatik kiradi, joylashuv Angren;
+ekranni simulyator konteyneridagi `tmp/route.txt` tanlaydi (fayl izohiga qarang).
+
+Imzo: Xcode loyihasida `DEVELOPMENT_TEAM = UDXP3ZMCXS` (avtomatik imzolash) —
+Codemagic'dagi App Store Connect kaliti shu jamoaga tegishli bo'lsin.
+
 Chiqqach: `.env.prod` ga `APP_UPDATE_URL_PASSENGER_IOS=https://apps.apple.com/app/id<raqam>`.
 
 ## Xavflar va B reja
