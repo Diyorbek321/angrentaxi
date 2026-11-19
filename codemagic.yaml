@@ -1,0 +1,66 @@
+# Codemagic — iOS (faqat yo'lovchi ilovasi) bulutda yig'iladi va TestFlight'ga yuklanadi.
+# Bizda Mac yo'q, Linux'da iOS build qilib bo'lmaydi. Sozlash: docs/IOS-RELEASE.md
+#
+# Codemagic UI'da oldindan:
+#   Team settings → Integrations → App Store Connect API kaliti, nomi: "AngrenTaxi ASC"
+#   Environment variables → guruh "ios_passenger" (hammasi "Secure"):
+#     GOOGLE_SERVICE_INFO_PLIST  — GoogleService-Info.plist, base64 (`base64 -w0 GoogleService-Info.plist`)
+#     MOBILE_DART_DEFINES_JSON   — mobile/.env.dart-defines.json mazmuni (MAPTILER_KEY, SENTRY_DSN, ...)
+#     API_BASE_URL, WS_URL       — prod manzillar (GitHub'dagi MOBILE_API_BASE_URL / MOBILE_WS_URL bilan bir xil)
+#     SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT — ixtiyoriy, simvollar uchun
+workflows:
+  ios-passenger:
+    name: iOS — Angren Taxi (yo'lovchi)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: mobile
+    integrations:
+      app_store_connect: AngrenTaxi ASC
+    environment:
+      groups:
+        - ios_passenger
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: uz.angren.taxi.passenger
+      flutter: 3.32.2
+      xcode: latest
+      cocoapods: default
+    triggers:
+      # Faqat qo'lda yoki "ios-v*" tegida — har push'da Mac daqiqalari sarflanmasin.
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'ios-v*'
+          include: true
+    scripts:
+      - name: Sirlarni yozish (faqat shu build ichida)
+        script: |
+          set -euo pipefail
+          : "${GOOGLE_SERVICE_INFO_PLIST:?GOOGLE_SERVICE_INFO_PLIST yo'q — docs/IOS-RELEASE.md}"
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+          if [[ -n "${MOBILE_DART_DEFINES_JSON:-}" ]]; then
+            printf '%s' "$MOBILE_DART_DEFINES_JSON" > .env.dart-defines.json
+          fi
+      - name: Paketlar
+        script: |
+          # Build raqami = commitlar soni (tool/build_ios.sh); sayoz klonda soni kam chiqardi
+          # va App Store "build raqami oshmagan" deb rad etardi.
+          git fetch --unshallow --quiet || true
+          flutter pub get
+          cd ios && pod install --repo-update
+      - name: Imzo profillari
+        script: xcode-project use-profiles
+      - name: IPA yig'ish
+        script: |
+          # Codemagic `use-profiles` yozgan eksport sozlamasi.
+          EXPORT_OPTIONS_PLIST="$HOME/export_options.plist" tool/build_ios.sh
+    artifacts:
+      - '**/build/ios/ipa/*.ipa'
+      - '**/build/symbols/ios/**'
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Avval faqat TestFlight. App Review'ga yuborish — qo'lda, App Store Connect'dan.
+        submit_to_testflight: true
+        submit_to_app_store: false

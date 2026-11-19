@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>uz</string>
+	<key>CFBundleDisplayName</key>
+	<string>Angren Taxi</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>uz</string>
+		<string>ru</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>Angren Taxi</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>telprompt</string>
+		<string>sms</string>
+		<string>https</string>
+		<string>http</string>
+		<string>tg</string>
+		<string>yandexnavi</string>
+		<string>yandexmaps</string>
+		<string>comgooglemaps</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Safardagi muammo haqida xabar berganda dalil sifatida rasm olish uchun. / Чтобы сфотографировать доказательство, когда вы сообщаете о проблеме в поездке.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Taksi chaqirishda qayerdan olib ketishni aniqlash va haydovchi sizgacha qancha qolganini ko'rsatish uchun joylashuvingiz kerak. / Геолокация нужна, чтобы определить адрес подачи и показать, сколько водителю осталось ехать до вас.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Muammo haqidagi xabarga galereyadan rasm biriktirish uchun. / Чтобы прикрепить фото из галереи к сообщению о проблеме.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<key>UIStatusBarHidden</key>
+	<false/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+</dict>
+</plist>

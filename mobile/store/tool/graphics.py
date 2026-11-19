@@ -7,7 +7,7 @@ matn Montserrat'ga tushadi. Ranglar — app_theme.dart va ilova ikonkasidan. Mat
 
     python3 store/tool/graphics.py          # mobile/ ichidan
 
-Natija: store/graphics/
+Natija: store/graphics/ va iOS ikonkasi (ios/Runner/Assets.xcassets/AppIcon.appiconset).
 """
 from __future__ import annotations
 
@@ -119,6 +119,31 @@ def main() -> None:
     for app in BANNERS:
         for lang in ("uz", "ru"):
             render(banner_html(app, lang), 1024, 500, OUT / f"feature-{app}-{lang}.png")
+    render_ios_icon()
+
+
+IOS_ICON_SET = ROOT / "ios" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
+
+
+def render_ios_icon() -> None:
+    """iOS (yo'lovchi) — Xcode 14+ bitta 1024×1024 ikonkadan qolgan o'lchamlarni o'zi yasaydi.
+
+    App Store shaffoflik (alpha) bo'lgan ikonkani rad etadi — RGB'ga o'giriladi.
+    Burchaklarni iOS o'zi yumaloqlaydi, shuning uchun to'liq kvadrat.
+    """
+    from PIL import Image  # faqat shu funksiyaga kerak
+
+    for old in IOS_ICON_SET.glob("*.png"):
+        old.unlink()
+    out = IOS_ICON_SET / "AppIcon-1024.png"
+    render(icon_html(1024), 1024, 1024, out)
+    Image.open(out).convert("RGB").save(out)
+    (IOS_ICON_SET / "Contents.json").write_text(
+        '{\n  "images" : [\n    {\n      "filename" : "AppIcon-1024.png",\n'
+        '      "idiom" : "universal",\n      "platform" : "ios",\n      "size" : "1024x1024"\n'
+        '    }\n  ],\n  "info" : {\n    "author" : "xcode",\n    "version" : 1\n  }\n}\n',
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":
