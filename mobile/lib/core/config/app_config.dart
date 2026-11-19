@@ -27,6 +27,11 @@ class AppConfig {
   static const bool demoMode =
       bool.fromEnvironment('DEMO_MODE', defaultValue: false);
 
+  /// Public legal pages served by the backend (see backend LegalController).
+  /// The same URLs go into the App Store Connect / Play Console listings.
+  static String get privacyPolicyUrl => '$apiBaseUrl/legal/privacy';
+  static String get termsUrl => '$apiBaseUrl/legal/terms';
+
   static const Duration otpResendDuration = Duration(seconds: 60);
   static const Duration orderOfferTimeout = Duration(seconds: 15);
   static const int locationUpdateDistanceFilter = 10; // meters

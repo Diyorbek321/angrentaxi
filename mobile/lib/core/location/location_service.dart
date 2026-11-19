@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:geolocator/geolocator.dart';
 
 /// Why [LocationService.getCurrentPosition] returned null, so callers can
@@ -64,13 +66,41 @@ class LocationService {
     return LocationUnavailableReason.timeoutOrError;
   }
 
-  Stream<Position> getPositionStream({int distanceFilter = 10}) {
-    return Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
+  /// [background] keeps updates flowing while the app is backgrounded (the
+  /// driver switches to a navigation app while online). On iOS this needs the
+  /// `location` UIBackgroundModes entry, which only the driver app declares,
+  /// and shows the system blue location indicator while active.
+  Stream<Position> getPositionStream({
+    int distanceFilter = 10,
+    bool background = false,
+  }) {
+    final LocationSettings settings;
+    if (Platform.isIOS) {
+      settings = AppleSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: distanceFilter,
-      ),
-    );
+        activityType: ActivityType.automotiveNavigation,
+        pauseLocationUpdatesAutomatically: !background,
+        allowBackgroundLocationUpdates: background,
+        showBackgroundLocationIndicator: background,
+      );
+    } else if (Platform.isAndroid && background) {
+      settings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Angren Taxi Driver',
+          notificationText: 'Siz onlaynsiz — buyurtmalar qabul qilinmoqda',
+          enableWakeLock: true,
+        ),
+      );
+    } else {
+      settings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+      );
+    }
+    return Geolocator.getPositionStream(locationSettings: settings);
   }
 
   double calculateDistance(

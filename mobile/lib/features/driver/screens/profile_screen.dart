@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/support/screens/chat_screen.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/account_actions.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -101,6 +102,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                   backgroundColor: kErrorDeep,
                   foregroundColor: kOnPrimary,
                 ),
+                const SizedBox(height: kSpace2),
+                const DeleteAccountButton(),
               ],
             ),
           );
@@ -250,11 +253,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   Widget _buildMenuList(BuildContext context) {
     return Column(
       children: [
-        _buildMenuTile(Icons.edit_outlined, 'Ma\'lumotlarni tahrirlash', () {}),
-        _buildMenuTile(
-            Icons.directions_car_outlined, 'Mashina ma\'lumotlari', () {}),
-        _buildMenuTile(Icons.account_balance_outlined, 'Bank hisobi', () {}),
-        _buildMenuTile(Icons.notifications_outlined, 'Bildirishnomalar', () {}),
         _buildMenuTile(
           Icons.help_outline,
           'Yordam',
@@ -270,6 +268,16 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             applicationName: 'Angren Taxi - Haydovchi',
             applicationVersion: '1.0.0',
           ),
+        ),
+        _buildMenuTile(
+          Icons.shield_outlined,
+          'Maxfiylik siyosati',
+          () => openPrivacyPolicy(context),
+        ),
+        _buildMenuTile(
+          Icons.description_outlined,
+          'Foydalanish shartlari',
+          () => openTerms(context),
         ),
       ],
     );

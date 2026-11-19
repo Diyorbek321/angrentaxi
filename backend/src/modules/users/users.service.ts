@@ -5,16 +5,24 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
+import { RefreshToken } from '../../database/entities/refresh-token.entity';
+import { FavoriteAddress } from '../../database/entities/favorite-address.entity';
+import { Driver } from '../../database/entities/driver.entity';
+
+// Marker stored in blockReason for self-deleted accounts, so admin tooling
+// can tell them apart from accounts an admin blocked.
+export const ACCOUNT_DELETED_REASON = 'account_deleted';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: string): Promise<User | null> {
@@ -95,6 +103,37 @@ export class UsersService {
     };
 
     return this.userRepository.save(updatedUser);
+  }
+
+  /**
+   * Self-service account deletion (required by App Store guideline 5.1.1(v)).
+   *
+   * The user row cannot be hard-deleted: orders, trips, ratings and
+   * transactions reference it and must survive for accounting. Instead every
+   * piece of personal data is wiped and the phone number is released, so the
+   * person can later sign up again as a brand-new account. All sessions are
+   * revoked so every device is logged out immediately.
+   */
+  async deleteAccount(id: string): Promise<void> {
+    await this.findByIdOrThrow(id);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, id, {
+        phone: `deleted:${id}`,
+        firstName: null,
+        lastName: null,
+        fcmToken: null,
+        status: UserStatus.BLOCKED,
+        blockReason: ACCOUNT_DELETED_REASON,
+        permissions: [],
+      });
+      await manager.update(
+        RefreshToken,
+        { userId: id, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
+      await manager.delete(FavoriteAddress, { userId: id });
+      await manager.update(Driver, { userId: id }, { isOnline: false });
+    });
   }
 
   async updateStatus(id: string, status: UserStatus): Promise<User> {

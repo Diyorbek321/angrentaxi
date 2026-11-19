@@ -101,9 +101,15 @@ export class AuthService {
       : bypassFlagSet;
     const bypassCode = this.configService.get<string>('OTP_BYPASS_CODE') || '123456';
 
+    // App Store / Google Play reviewers cannot receive our SMS, so a short
+    // allow-list of dedicated review accounts (REVIEW_PHONES) always uses
+    // REVIEW_OTP_CODE, even in production. Every other number is unaffected.
+    const reviewCode = this.reviewOtpCodeFor(phone);
+
     // In dev/bypass mode use the fixed bypass code so testers can always log in
     // with a known value; otherwise generate a random 6-digit code.
-    const code = otpBypassEnabled ? bypassCode : this.generateOtpCode();
+    const code =
+      reviewCode ?? (otpBypassEnabled ? bypassCode : this.generateOtpCode());
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     await this.otpRepository.save({
@@ -113,6 +119,13 @@ export class AuthService {
       attempts: 0,
       expiresAt,
     });
+
+    if (reviewCode) {
+      // Never echo the code back or send an SMS: the reviewer is given it
+      // in the App Review notes.
+      this.logger.log(`Store review login requested for ${phone}`);
+      return { message: 'OTP sent successfully' };
+    }
 
     if (otpBypassEnabled) {
       this.logger.warn(`OTP bypass enabled. Code for ${phone}: ${code}`);
@@ -125,6 +138,17 @@ export class AuthService {
     );
 
     return { message: 'OTP sent successfully' };
+  }
+
+  /** Fixed OTP for allow-listed store-review phones, or null for everyone else. */
+  private reviewOtpCodeFor(phone: string): string | null {
+    const code = this.configService.get<string>('REVIEW_OTP_CODE')?.trim();
+    const phones = (this.configService.get<string>('REVIEW_PHONES') ?? '')
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!code || !/^\d{6}$/.test(code) || !phones.includes(phone)) return null;
+    return code;
   }
 
   async verifyOtp(

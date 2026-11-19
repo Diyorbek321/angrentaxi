@@ -8,6 +8,7 @@ import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/shared/widgets/account_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,7 +16,8 @@ class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
   String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return 'AG';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -25,17 +27,13 @@ class ProfileTab extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
-    final name = (user?.name?.trim().isNotEmpty ?? false) ? user!.name! : 'Foydalanuvchi';
+    final name = (user?.name?.trim().isNotEmpty ?? false)
+        ? user!.name!
+        : 'Foydalanuvchi';
     final phone = user?.phone ?? '';
     final topPad = MediaQuery.of(context).padding.top;
 
@@ -45,10 +43,12 @@ class ProfileTab extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 100),
         children: [
           Container(
-            padding: EdgeInsets.fromLTRB(kSpace4, topPad + kSpace5, kSpace4, kSpace6),
+            padding: EdgeInsets.fromLTRB(
+                kSpace4, topPad + kSpace5, kSpace4, kSpace6),
             decoration: const BoxDecoration(
               gradient: agHeader,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(kRadiusXl)),
+              borderRadius:
+                  BorderRadius.vertical(bottom: Radius.circular(kRadiusXl)),
             ),
             child: Column(
               children: [
@@ -100,7 +100,8 @@ class ProfileTab extends StatelessWidget {
                         child: const SizedBox(
                           width: kMinTapTarget,
                           height: kMinTapTarget,
-                          child: Icon(Icons.edit_rounded, color: agOnPrimary, size: 24),
+                          child: Icon(Icons.edit_rounded,
+                              color: agOnPrimary, size: 24),
                         ),
                       ),
                     ),
@@ -112,7 +113,9 @@ class ProfileTab extends StatelessWidget {
                     _stat('${user?.totalTrips ?? 0}', 'Safarlar'),
                     const SizedBox(width: kSpace3),
                     _stat(
-                      user?.rating != null ? user!.rating!.toStringAsFixed(1) : '—',
+                      user?.rating != null
+                          ? user!.rating!.toStringAsFixed(1)
+                          : '—',
                       'Reyting',
                     ),
                   ],
@@ -161,13 +164,15 @@ class ProfileTab extends StatelessWidget {
                                         fontSize: kFontTitle)),
                                 Text("24/7 qo'llab-quvvatlash xizmati",
                                     style: TextStyle(
-                                        color: agOnPrimary.withValues(alpha: 0.75),
+                                        color:
+                                            agOnPrimary.withValues(alpha: 0.75),
                                         fontSize: kFontCaption,
                                         fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
-                          const Icon(Icons.arrow_forward_rounded, color: agBright, size: 22),
+                          const Icon(Icons.arrow_forward_rounded,
+                              color: agBright, size: 22),
                         ],
                       ),
                     ),
@@ -183,25 +188,34 @@ class ProfileTab extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      _MenuRow(icon: Icons.account_balance_wallet_rounded, iconColor: agGreenText, label: 'Hamyon va kartalar',
+                      _MenuRow(
+                          icon: Icons.account_balance_wallet_rounded,
+                          iconColor: agGreenText,
+                          label: 'Hamyon va kartalar',
                           onTap: () => _push(context, const WalletScreen())),
-                      _MenuRow(icon: Icons.receipt_long_rounded, label: 'Buyurtmalar tarixi',
-                          onTap: () => context.read<SuperappProvider>().tabIndex = 1),
-                      _MenuRow(icon: Icons.favorite_rounded, label: 'Sevimlilar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.workspace_premium_rounded, iconColor: agOrange, label: 'Bonuslar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.reviews_rounded, label: 'Mening baholarim',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.place_rounded, label: 'Saqlangan manzillar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar',
+                      _MenuRow(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Buyurtmalar tarixi',
+                          onTap: () =>
+                              context.read<SuperappProvider>().tabIndex = 1),
+                      _MenuRow(
+                          icon: Icons.redeem_rounded,
+                          label: 'Aksiyalar va promokodlar',
                           onTap: () => _push(context, const PromosScreen())),
-                      _MenuRow(icon: Icons.group_add_rounded, iconColor: agPurple, label: "Do'stlarni taklif qilish",
+                      _MenuRow(
+                          icon: Icons.group_add_rounded,
+                          iconColor: agPurple,
+                          label: "Do'stlarni taklif qilish",
                           onTap: () => _push(context, const ReferralScreen())),
-                      _MenuRow(icon: Icons.notifications_rounded, label: 'Bildirishnomalar',
-                          onTap: () => _push(context, const NotificationsScreen())),
-                      _MenuRow(icon: Icons.settings_rounded, label: 'Sozlamalar', last: true,
+                      _MenuRow(
+                          icon: Icons.notifications_rounded,
+                          label: 'Bildirishnomalar',
+                          onTap: () =>
+                              _push(context, const NotificationsScreen())),
+                      _MenuRow(
+                          icon: Icons.settings_rounded,
+                          label: 'Sozlamalar',
+                          last: true,
                           onTap: () => _push(context, const SettingsScreen())),
                     ],
                   ),
@@ -225,7 +239,8 @@ class ProfileTab extends StatelessWidget {
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.logout_rounded, size: 20, color: kErrorDeep),
+                          Icon(Icons.logout_rounded,
+                              size: 20, color: kErrorDeep),
                           SizedBox(width: kSpace2),
                           Text('Chiqish',
                               style: TextStyle(
@@ -237,6 +252,8 @@ class ProfileTab extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: kSpace2),
+                const DeleteAccountButton(),
               ],
             ),
           ),
@@ -256,10 +273,14 @@ class ProfileTab extends StatelessWidget {
             children: [
               Text(value,
                   style: const TextStyle(
-                      color: agOnPrimary, fontWeight: FontWeight.w800, fontSize: kFontH2)),
+                      color: agOnPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: kFontH2)),
               Text(label,
                   style: const TextStyle(
-                      color: agOnPrimary, fontSize: kFontMicro, fontWeight: FontWeight.w600)),
+                      color: agOnPrimary,
+                      fontSize: kFontMicro,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -294,7 +315,9 @@ class _MenuRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: kMinTapTarget),
           padding: const EdgeInsets.symmetric(vertical: kSpace4),
           decoration: BoxDecoration(
-            border: last ? null : const Border(bottom: BorderSide(color: agDivider)),
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: agDivider)),
           ),
           child: Row(
             children: [
@@ -303,7 +326,9 @@ class _MenuRow extends StatelessWidget {
               Expanded(
                 child: Text(label,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
+                        fontWeight: FontWeight.w700,
+                        fontSize: kFontBody,
+                        color: agText)),
               ),
               const Icon(Icons.chevron_right_rounded, size: 20, color: agMuted),
             ],

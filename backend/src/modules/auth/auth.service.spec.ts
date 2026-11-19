@@ -156,3 +156,25 @@ describe('AuthService OTP code generation', () => {
     spy.mockRestore();
   });
 });
+
+describe('AuthService store-review OTP allow-list', () => {
+  const reviewOtpCodeFor = (
+    AuthService.prototype as unknown as { reviewOtpCodeFor: (phone: string) => string | null }
+  ).reviewOtpCodeFor;
+  const withEnv = (env: Record<string, string | undefined>) => ({
+    configService: { get: (key: string) => env[key] },
+  });
+
+  it('returns the fixed code only for allow-listed phones', () => {
+    const ctx = withEnv({ REVIEW_PHONES: '+998900000001, +998900000002', REVIEW_OTP_CODE: '424242' });
+    expect(reviewOtpCodeFor.call(ctx, '+998900000002')).toBe('424242');
+    expect(reviewOtpCodeFor.call(ctx, '+998901234567')).toBeNull();
+  });
+
+  it('is disabled when the code is missing or not 6 digits', () => {
+    expect(reviewOtpCodeFor.call(withEnv({ REVIEW_PHONES: '+998900000001' }), '+998900000001')).toBeNull();
+    expect(
+      reviewOtpCodeFor.call(withEnv({ REVIEW_PHONES: '+998900000001', REVIEW_OTP_CODE: '12' }), '+998900000001'),
+    ).toBeNull();
+  });
+});

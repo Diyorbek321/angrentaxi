@@ -58,6 +58,7 @@ import { RefreshToken } from './database/entities/refresh-token.entity';
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { LegalModule } from './modules/legal/legal.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -194,6 +195,7 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     AuthModule,
     FavoritesModule,
     UsersModule,
+    LegalModule,
     DriversModule,
     TariffsModule,
     OrdersModule,

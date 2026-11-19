@@ -14,10 +14,10 @@ class AuthProvider extends ChangeNotifier {
     required LocalStorage localStorage,
     required SocketService socketService,
     required GlobalKey<NavigatorState> navigatorKey,
-  }) : _apiClient = apiClient,
-       _localStorage = localStorage,
-       _socketService = socketService,
-       _navigatorKey = navigatorKey;
+  })  : _apiClient = apiClient,
+        _localStorage = localStorage,
+        _socketService = socketService,
+        _navigatorKey = navigatorKey;
 
   final ApiClient _apiClient;
   final LocalStorage _localStorage;
@@ -141,18 +141,36 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {
       // Ignore logout API errors
     } finally {
-      _socketService.disconnect();
-      await _localStorage.clearAll();
-      _currentUser = null;
-      _phone = null;
-      _setState(AuthState.idle);
-      // Return to the auth flow from wherever logout was triggered (home menu,
-      // profile, etc.). Centralised here so every caller behaves consistently.
-      _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        '/phone',
-        (route) => false,
-      );
+      await _clearSessionAndReturnToAuth();
     }
+  }
+
+  /// Permanently deletes the current account (DELETE /users/me). The server
+  /// wipes personal data and revokes every session, so on success the local
+  /// session is cleared and the app returns to the phone screen. Returns an
+  /// error message on failure, or null on success.
+  Future<String?> deleteAccount() async {
+    try {
+      await _apiClient.delete(ApiEndpoints.deleteAccount);
+    } catch (e) {
+      return extractErrorMessage(e);
+    }
+    await _clearSessionAndReturnToAuth();
+    return null;
+  }
+
+  Future<void> _clearSessionAndReturnToAuth() async {
+    _socketService.disconnect();
+    await _localStorage.clearAll();
+    _currentUser = null;
+    _phone = null;
+    _setState(AuthState.idle);
+    // Return to the auth flow from wherever logout was triggered (home menu,
+    // profile, etc.). Centralised here so every caller behaves consistently.
+    _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/phone',
+      (route) => false,
+    );
   }
 
   void clearError() {
@@ -170,8 +188,8 @@ class AuthProvider extends ChangeNotifier {
 }
 
 AuthProvider buildAuthProvider() => AuthProvider(
-  apiClient: sl<ApiClient>(),
-  localStorage: sl<LocalStorage>(),
-  socketService: sl<SocketService>(),
-  navigatorKey: sl<GlobalKey<NavigatorState>>(),
-);
+      apiClient: sl<ApiClient>(),
+      localStorage: sl<LocalStorage>(),
+      socketService: sl<SocketService>(),
+      navigatorKey: sl<GlobalKey<NavigatorState>>(),
+    );

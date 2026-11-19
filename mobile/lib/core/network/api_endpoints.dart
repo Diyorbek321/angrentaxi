@@ -13,6 +13,7 @@ class ApiEndpoints {
   // from anywhere until the profile-edit screen below started using it.
   static const String userProfile = '/users/me';
   static const String updateProfile = '/users/me';
+  static const String deleteAccount = '/users/me';
   static const String paymentMethods = '/users/payment-methods';
 
   // Favorite addresses (passenger)

@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Query,
@@ -64,6 +67,15 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<User> {
     return this.usersService.update(user.id, dto);
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Permanently delete (anonymize) the current account' })
+  @ApiResponse({ status: 204, description: 'Account deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deleteMe(@CurrentUser() user: User): Promise<void> {
+    await this.usersService.deleteAccount(user.id);
   }
 
   @Get(':id')

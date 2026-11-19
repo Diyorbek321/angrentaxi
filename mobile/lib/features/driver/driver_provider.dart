@@ -114,8 +114,8 @@ class DriverProvider extends ChangeNotifier {
   bool get isOnline => _isOnline;
   bool get hasActiveOrder => _activeOrder != null;
   List<DriverDocument> get documents => List.unmodifiable(_documents);
-  Map<DriverDocumentType, DriverDocumentUploadState>
-      get documentUploadStates => Map.unmodifiable(_documentUploadStates);
+  Map<DriverDocumentType, DriverDocumentUploadState> get documentUploadStates =>
+      Map.unmodifiable(_documentUploadStates);
   List<WithdrawalRequest> get withdrawals => List.unmodifiable(_withdrawals);
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
@@ -204,8 +204,7 @@ class DriverProvider extends ChangeNotifier {
         ApiEndpoints.driverApply,
         data: {
           if (carModel != null && carModel.isNotEmpty) 'carModel': carModel,
-          if (carNumber != null && carNumber.isNotEmpty)
-            'carNumber': carNumber,
+          if (carNumber != null && carNumber.isNotEmpty) 'carNumber': carNumber,
           if (licensePlate != null && licensePlate.isNotEmpty)
             'licensePlate': licensePlate,
           if (carYear != null) 'carYear': carYear,
@@ -462,6 +461,7 @@ class DriverProvider extends ChangeNotifier {
     _locationSubscription = _locationService
         .getPositionStream(
       distanceFilter: AppConfig.locationUpdateDistanceFilter,
+      background: true,
     )
         .listen((position) {
       _emitLocation(position);
@@ -569,8 +569,7 @@ class DriverProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       final list = data['data'] as List<dynamic>;
       _bonusProgress = list
-          .map((e) =>
-              DriverBonusProgress.fromJson(e as Map<String, dynamic>))
+          .map((e) => DriverBonusProgress.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
     } catch (e) {

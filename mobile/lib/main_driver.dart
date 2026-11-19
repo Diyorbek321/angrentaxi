@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:angren_taxi/app.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -56,7 +58,11 @@ Future<void> _registerFcmToken() async {
       final apiClient = sl<ApiClient>();
       await apiClient.post(
         ApiEndpoints.registerFcmToken,
-        data: {'token': token, 'platform': 'android', 'role': 'driver'},
+        data: {
+          'token': token,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'role': 'driver',
+        },
       );
     }
   } catch (e) {

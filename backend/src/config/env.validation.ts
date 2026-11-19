@@ -110,6 +110,16 @@ class EnvironmentVariables {
   @IsBoolean()
   @IsOptional()
   OTP_BYPASS_ENABLED: boolean = false;
+
+  // Comma-separated phones (e.g. +998900000001) that always log in with
+  // REVIEW_OTP_CODE — for App Store / Google Play review accounts only.
+  @IsString()
+  @IsOptional()
+  REVIEW_PHONES: string = '';
+
+  @IsString()
+  @IsOptional()
+  REVIEW_OTP_CODE: string = '';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/shared/utils/validators.dart';
+import 'package:angren_taxi/shared/widgets/account_actions.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +81,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       isLoading: auth.state == AuthState.loading,
                     );
                   },
-                ).animate().fadeIn(delay: 300.ms, duration: 450.ms).slideY(begin: 0.3),
+                )
+                    .animate()
+                    .fadeIn(delay: 300.ms, duration: 450.ms)
+                    .slideY(begin: 0.3),
                 const SizedBox(height: kSpace6),
                 _buildTermsText().animate().fadeIn(delay: 450.ms),
               ],
@@ -162,13 +166,38 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildTermsText() {
-    return const Text(
-      'Davom etish orqali siz foydalanish shartlari va '
-      'maxfiylik siyosatiga rozilik bildirasiz.',
-      style: TextStyle(
-        fontSize: kFontCaption,
-        color: kInkMuted,
-        height: 1.5,
+    const base =
+        TextStyle(fontSize: kFontCaption, color: kInkMuted, height: 1.5);
+    const link = TextStyle(
+      fontSize: kFontCaption,
+      color: kPrimary,
+      height: 1.5,
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+    );
+    Widget tappable(String text, VoidCallback onTap) => Semantics(
+          link: true,
+          child: GestureDetector(onTap: onTap, child: Text(text, style: link)),
+        );
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          const TextSpan(text: 'Davom etish orqali siz '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: tappable('foydalanish shartlari', () => openTerms(context)),
+          ),
+          const TextSpan(text: ' va '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: tappable(
+                'maxfiylik siyosati', () => openPrivacyPolicy(context)),
+          ),
+          const TextSpan(text: 'ga rozilik bildirasiz.'),
+        ],
       ),
       textAlign: TextAlign.center,
     );

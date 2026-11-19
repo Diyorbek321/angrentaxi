@@ -27,7 +27,9 @@ class FlutterSecureTokenStore implements SecureTokenStore {
   const FlutterSecureTokenStore([this._storage = _defaultStorage]);
 
   static const FlutterSecureStorage _defaultStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // v10+ encrypts with its own Keystore-backed cipher by default and
+    // migrates data written by the old EncryptedSharedPreferences mode.
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),

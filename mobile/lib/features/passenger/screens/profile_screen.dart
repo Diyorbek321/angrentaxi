@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart'
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/account_actions.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -71,6 +72,8 @@ class PassengerProfileScreen extends StatelessWidget {
                   backgroundColor: kError,
                   foregroundColor: kOnPrimary,
                 ),
+                const SizedBox(height: kSpace2),
+                const DeleteAccountButton(),
               ],
             ),
           );
@@ -141,9 +144,9 @@ class PassengerProfileScreen extends StatelessWidget {
           ),
         ),
         _buildMenuTile(
-          Icons.notifications_outlined,
-          'Bildirishnomalar',
-          () => _notImplementedYet(context),
+          Icons.shield_outlined,
+          'Maxfiylik siyosati',
+          () => openPrivacyPolicy(context),
         ),
         _buildMenuTile(
           Icons.help_outline,
@@ -208,12 +211,6 @@ class PassengerProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
     );
   }
 
