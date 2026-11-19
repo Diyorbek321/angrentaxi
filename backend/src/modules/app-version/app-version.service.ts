@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export type AppFlavor = 'passenger' | 'driver';
+export type AppPlatform = 'android' | 'ios';
 
 export interface AppVersionPolicy {
   /** Bundan past build ishlamaydi — ilova "yangilang" ekranida to'xtaydi. */
@@ -20,13 +21,17 @@ export interface AppVersionPolicy {
  * `APP_MIN_BUILD_DRIVER`, `APP_LATEST_BUILD_DRIVER`, `APP_UPDATE_URL_DRIVER`
  * (passenger uchun ham xuddi shunday). Berilmasa — 0, ya'ni hech kim
  * bloklanmaydi.
+ *
+ * iOS o'z kalitlarini oladi: `APP_MIN_BUILD_PASSENGER_IOS` va h.k. Android
+ * qiymatiga QAYTMAYDI: iPhone'ga APK havolasi bormasin, Android'ning min
+ * build'i (boshqa build raqamlari ketma-ketligi) iOS'ni bloklamasin.
  */
 @Injectable()
 export class AppVersionService {
   constructor(private readonly config: ConfigService) {}
 
-  policyFor(flavor: AppFlavor): AppVersionPolicy {
-    const suffix = flavor.toUpperCase();
+  policyFor(flavor: AppFlavor, platform: AppPlatform = 'android'): AppVersionPolicy {
+    const suffix = flavor.toUpperCase() + (platform === 'ios' ? '_IOS' : '');
     const minBuild = this.int(`APP_MIN_BUILD_${suffix}`);
     const latestBuild = Math.max(minBuild, this.int(`APP_LATEST_BUILD_${suffix}`));
     const updateUrl = this.config.get<string>(`APP_UPDATE_URL_${suffix}`)?.trim() || null;

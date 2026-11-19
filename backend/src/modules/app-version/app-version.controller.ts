@@ -1,8 +1,9 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { AppFlavor, AppVersionPolicy, AppVersionService } from './app-version.service';
+import { AppFlavor, AppPlatform, AppVersionPolicy, AppVersionService } from './app-version.service';
 
 const FLAVORS: readonly AppFlavor[] = ['passenger', 'driver'];
+const PLATFORMS: readonly AppPlatform[] = ['android', 'ios'];
 
 // Ochiq (JWT'siz): ilova kirishdan OLDIN ham tekshiradi — eski build
 // login oqimining o'zida buzilgan bo'lishi mumkin.
@@ -14,10 +15,18 @@ export class AppVersionController {
   @Get('version')
   @ApiOperation({ summary: 'Minimal / eng yangi ilova build raqami (force update)' })
   @ApiQuery({ name: 'flavor', enum: FLAVORS })
-  version(@Query('flavor') flavor: string): AppVersionPolicy {
+  // Ixtiyoriy: eski ilovalar yubormaydi — ular Android.
+  @ApiQuery({ name: 'platform', enum: PLATFORMS, required: false })
+  version(
+    @Query('flavor') flavor: string,
+    @Query('platform') platform: string = 'android',
+  ): AppVersionPolicy {
     if (!FLAVORS.includes(flavor as AppFlavor)) {
       throw new BadRequestException('flavor must be passenger or driver');
     }
-    return this.appVersion.policyFor(flavor as AppFlavor);
+    if (!PLATFORMS.includes(platform as AppPlatform)) {
+      throw new BadRequestException('platform must be android or ios');
+    }
+    return this.appVersion.policyFor(flavor as AppFlavor, platform as AppPlatform);
   }
 }

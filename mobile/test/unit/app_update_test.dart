@@ -3,6 +3,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/update/app_update.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -34,7 +35,8 @@ void main() {
     setUp(() => api = _MockApiClient());
 
     test('serverdagi siyosat o\'qiladi (envelope bilan)', () async {
-      when(() => api.get(ApiEndpoints.appVersion, params: {'flavor': 'driver'}))
+      when(() => api.get(ApiEndpoints.appVersion,
+              params: {'flavor': 'driver', 'platform': 'android'}))
           .thenAnswer((_) async => Response<dynamic>(
                 requestOptions: RequestOptions(path: ApiEndpoints.appVersion),
                 data: {
@@ -56,6 +58,27 @@ void main() {
 
       expect(result?.requirement, UpdateRequirement.required);
       expect(result?.policy.updateUrl, 'https://x.uz/d.apk');
+    });
+
+    test("iPhone'da platform=ios yuboriladi — Android APK siyosati kelmasin", () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      when(() => api.get(any(), params: any(named: 'params'))).thenAnswer(
+        (_) async => Response<dynamic>(
+          requestOptions: RequestOptions(path: ApiEndpoints.appVersion),
+          data: {'minBuild': 0, 'latestBuild': 0},
+        ),
+      );
+      final service = AppUpdateService(
+        api,
+        flavor: AppFlavor.passenger,
+        currentBuild: () async => 5,
+      );
+
+      await service.check();
+
+      verify(() => api.get(ApiEndpoints.appVersion,
+          params: {'flavor': 'passenger', 'platform': 'ios'})).called(1);
     });
 
     test('tarmoq xatosi — null (foydalanuvchi bloklanmaydi)', () async {

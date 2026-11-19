@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
+import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 enum UpdateRequirement {
@@ -73,8 +74,12 @@ class AppUpdateService {
 
   Future<UpdateCheckResult?> check() async {
     try {
-      final response = await _api
-          .get(ApiEndpoints.appVersion, params: {'flavor': flavor.name});
+      // `platform`: iOS o'z build raqamlari va App Store havolasini oladi —
+      // aks holda iPhone'ga Android APK havolasi va min build'i kelardi.
+      final platform =
+          defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+      final response = await _api.get(ApiEndpoints.appVersion,
+          params: {'flavor': flavor.name, 'platform': platform});
       final body = response.data;
       final data = body is Map<String, dynamic> && body['data'] is Map
           ? body['data'] as Map<String, dynamic>
